@@ -15,6 +15,8 @@ export interface BarDatum {
 interface BarChartProps {
   data: BarDatum[];
   formatValue?: (value: number) => string;
+  /** Exact value for the hover readout; defaults to `formatValue`. */
+  formatExact?: (value: number) => string;
   /** Row height including its share of the gap. */
   rowHeight?: number;
   /** Width reserved for category names. */
@@ -30,6 +32,7 @@ interface BarChartProps {
 export function BarChart({
   data,
   formatValue = (v) => v.toLocaleString('nl-NL'),
+  formatExact,
   rowHeight = 30,
   labelWidth = 132,
   colour = 'var(--series-1)',
@@ -38,6 +41,7 @@ export function BarChart({
   const { tip, show, hide } = useTooltip();
   const [hover, setHover] = useState<number | null>(null);
 
+  const exact = formatExact ?? formatValue;
   const valueWidth = 74;
   const height = Math.max(40, data.length * rowHeight + 8);
 
@@ -95,7 +99,7 @@ export function BarChart({
                   y: top,
                   title: d.label,
                   rows: [
-                    { label: 'aantal', value: formatValue(d.value), colour: fill },
+                    { label: 'aantal', value: exact(d.value), colour: fill },
                     ...(d.detail ?? []).map((row) => ({ label: row.label, value: row.value })),
                   ],
                 });

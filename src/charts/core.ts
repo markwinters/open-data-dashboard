@@ -50,13 +50,6 @@ export function niceTicks(min: number, max: number, target = 5): number[] {
   return ticks;
 }
 
-/** Rounds a domain outward to the next tick, so the top mark is not clipped. */
-export function niceDomain(min: number, max: number, target = 5): [number, number] {
-  const ticks = niceTicks(min, max, target);
-  const step = ticks.length > 1 ? ticks[1]! - ticks[0]! : Math.abs(max - min) || 1;
-  return [Math.min(min, ticks[0] ?? min), Math.max(max, (ticks[ticks.length - 1] ?? max) + (max > (ticks[ticks.length - 1] ?? max) ? step : 0))];
-}
-
 /** Width of the element, tracked so charts re-lay out with the container. */
 export function useMeasure<T extends HTMLElement>(): [React.RefObject<T | null>, number] {
   const ref = useRef<T>(null);

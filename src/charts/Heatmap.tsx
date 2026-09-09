@@ -18,6 +18,8 @@ interface HeatmapProps {
   columns: string[];
   cells: HeatCell[];
   formatValue?: (value: number) => string;
+  /** Exact value for the hover readout; defaults to `formatValue`. */
+  formatExact?: (value: number) => string;
   /** What the colour means, for the scale legend. */
   scaleLabel: string;
   rowLabel?: string;
@@ -37,6 +39,7 @@ export function Heatmap({
   columns,
   cells,
   formatValue = (v) => v.toLocaleString('nl-NL'),
+  formatExact,
   scaleLabel,
   rowLabel = '',
   columnLabel = '',
@@ -45,6 +48,7 @@ export function Heatmap({
 }: HeatmapProps) {
   const [ref, width] = useMeasure<HTMLDivElement>();
   const { tip, show, hide } = useTooltip();
+  const exact = formatExact ?? formatValue;
 
   const { lookup, max } = useMemo(() => {
     const map = new Map<string, number>();
@@ -119,7 +123,7 @@ export function Heatmap({
                         rows: [
                           {
                             label: scaleLabel,
-                            value: text ?? 'geen gegevens',
+                            value: value == null ? 'geen gegevens' : exact(value),
                             colour: value == null ? undefined : sequential(t),
                           },
                           ...(rowLabel ? [{ label: rowLabel, value: row }] : []),

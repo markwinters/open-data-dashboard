@@ -16,7 +16,7 @@
 
 import { query, scalar, type SourceMode } from '../lib/dataSource';
 import { hydrate } from '../lib/join';
-import { and, between, eq, inList, lit, notNull } from '../lib/soql';
+import { and, between, eq, inList, notNull } from '../lib/soql';
 import { classifyPowertrain, type Powertrain } from '../lib/palette';
 import { toNumber } from '../lib/format';
 import type { Row } from '../mock/soqlEngine';
@@ -461,23 +461,6 @@ export async function loadPassport(ctx: Ctx, rawPlate: string): Promise<Passport
     ),
     missing,
   };
-}
-
-/** Plate suggestions for the search box - a prefix match on the register. */
-export async function suggestPlates(ctx: Ctx, prefix: string, limit = 6): Promise<Row[]> {
-  const clean = prefix.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (clean.length < 2) return [];
-  return query(
-    ctx.mode,
-    'vehicles',
-    {
-      select: 'kenteken, merk, handelsbenaming, datum_eerste_toelating_dt',
-      where: `starts_with(kenteken, ${lit(clean)})`,
-      order: 'kenteken',
-      limit,
-    },
-    { signal: ctx.signal },
-  );
 }
 
 /** A handful of plates that exist, so the passport view is never a dead end. */

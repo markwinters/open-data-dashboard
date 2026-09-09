@@ -5,7 +5,6 @@ import {
   POWERTRAIN_ORDER,
   classifyPowertrain,
   fuelColour,
-  ordinal,
   powertrainColour,
   sequential,
 } from '../lib/palette';
@@ -97,13 +96,5 @@ describe('sequential ramp', () => {
     expect(sequential(1)).toBe('var(--seq-700)');
     expect(sequential(-5)).toBe('var(--seq-100)');
     expect(sequential(Number.NaN)).toBe('var(--seq-100)');
-  });
-
-  it('keeps an ordinal ramp clear of the surface at both ends', () => {
-    // Never step 100 (too close to the light surface) or 700 (too close to dark).
-    const steps = [0, 1, 2, 3, 4].map((i) => ordinal(i, 5));
-    expect(steps).not.toContain('var(--seq-100)');
-    expect(steps).not.toContain('var(--seq-700)');
-    expect(new Set(steps).size).toBe(5);
   });
 });

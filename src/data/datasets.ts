@@ -157,9 +157,6 @@ export type DatasetKey = keyof typeof DATASETS;
 
 export const RDW_DOMAIN = 'https://opendata.rdw.nl';
 
-export const datasetUrl = (key: DatasetKey): string =>
-  `${RDW_DOMAIN}/resource/${DATASETS[key].id}`;
-
 /** Human-facing link to the dataset's landing page, for provenance footers. */
 export const datasetPage = (key: DatasetKey): string =>
   `${RDW_DOMAIN}/d/${DATASETS[key].id}`;

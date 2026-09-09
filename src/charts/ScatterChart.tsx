@@ -25,6 +25,9 @@ interface ScatterChartProps {
   yLabel: string;
   formatX?: (value: number) => string;
   formatY?: (value: number) => string;
+  /** Exact values for the hover readout; default to the axis formatters. */
+  formatExactX?: (value: number) => string;
+  formatExactY?: (value: number) => string;
 }
 
 const MARGIN = { top: 16, right: 16, bottom: 44, left: 56 };
@@ -43,7 +46,11 @@ export function ScatterChart({
   yLabel,
   formatX = (v) => v.toLocaleString('nl-NL'),
   formatY = (v) => v.toLocaleString('nl-NL'),
+  formatExactX,
+  formatExactY,
 }: ScatterChartProps) {
+  const exactX = formatExactX ?? formatX;
+  const exactY = formatExactY ?? formatY;
   const [ref, width] = useMeasure<HTMLDivElement>();
   const { tip, show, hide } = useTooltip();
   const [active, setActive] = useState<number | null>(null);
@@ -108,8 +115,8 @@ export function ScatterChart({
       y: Math.max(MARGIN.top, y(point.y) - 12),
       title: point.label,
       rows: [
-        { label: yLabel, value: formatY(point.y), colour: colourOf(point.group) },
-        { label: xLabel, value: formatX(point.x) },
+        { label: yLabel, value: exactY(point.y), colour: colourOf(point.group) },
+        { label: xLabel, value: exactX(point.x) },
         ...(point.detail ?? []),
       ],
     });

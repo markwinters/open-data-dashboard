@@ -57,10 +57,7 @@ function useTheme(): [Theme, () => void] {
 export default function App() {
   const [tab, setTab] = useState<Tab>('overzicht');
   const [mode, setMode] = useState<SourceMode>('live');
-  const [probe, setProbe] = useState<{ checked: boolean; reason: string | null }>({
-    checked: false,
-    reason: null,
-  });
+  const [fallbackReason, setFallbackReason] = useState<string | null>(null);
   const [theme, cycleTheme] = useTheme();
 
   /**
@@ -73,10 +70,10 @@ export default function App() {
     let live = true;
     probeLive().then((result) => {
       if (!live) return;
-      if (result.ok) setProbe({ checked: true, reason: null });
+      if (result.ok) setFallbackReason(null);
       else {
         setMode('demo');
-        setProbe({ checked: true, reason: result.reason });
+        setFallbackReason(result.reason);
       }
     });
     return () => {
@@ -146,8 +143,8 @@ export default function App() {
           </span>
           <span>
             <strong>Demogegevens.</strong>{' '}
-            {probe.reason
-              ? `${probe.reason} `
+            {fallbackReason
+              ? `${fallbackReason} `
               : 'Je kijkt naar gegenereerde voertuigen in plaats van de live API. '}
             De cijfers hieronder komen uit een gegenereerde vloot van {num(demoFleetSize())}{' '}
             voertuigen met dezelfde kolommen en codelijsten als RDW — realistisch van vorm, maar

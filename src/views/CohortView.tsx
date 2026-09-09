@@ -9,7 +9,7 @@ import { BarChart } from '../charts/BarChart';
 import { Heatmap } from '../charts/Heatmap';
 import { LineChart } from '../charts/LineChart';
 import { StatTile } from '../charts/Figures';
-import { POWERTRAIN_ORDER, powertrainColour, seriesVar } from '../lib/palette';
+import { ALL_PAIRS_SERIES_CAP, POWERTRAIN_ORDER, powertrainColour, seriesVar } from '../lib/palette';
 import { compact, euro, num, num1, percent, tick, titleCase } from '../lib/format';
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -25,7 +25,7 @@ const SCATTER_GROUPS = [
   { key: 'Benzine', label: 'Benzine', colour: seriesVar(0) },
   { key: 'Diesel', label: 'Diesel', colour: seriesVar(1) },
   { key: 'Elektrisch', label: 'Elektrisch of hybride', colour: seriesVar(2) },
-];
+].slice(0, ALL_PAIRS_SERIES_CAP);
 
 const scatterBucket = (vehicle: CohortVehicle): string | null => {
   switch (vehicle.powertrain) {
@@ -67,7 +67,12 @@ export function CohortView({ mode }: { mode: SourceMode }) {
   );
 
   const vehicles = useMemo(() => cohort.data?.vehicles ?? [], [cohort.data]);
-  const defectNames = cohort.data?.defectNames ?? new Map<string, string>();
+  // Identity has to be stable: a fresh Map each render would defeat the memo
+  // that reads it below, recomputing the defect leaderboard on every paint.
+  const defectNames = useMemo(
+    () => cohort.data?.defectNames ?? new Map<string, string>(),
+    [cohort.data],
+  );
 
   const summary = useMemo(() => {
     const combustionCo2 = vehicles
@@ -392,6 +397,7 @@ export function CohortView({ mode }: { mode: SourceMode }) {
               yLabel="CO₂ (g/km)"
               height={320}
               formatX={tick}
+              formatExactX={num}
             />
           </ChartCard>
 

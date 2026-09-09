@@ -69,6 +69,3 @@ export const and = (...parts: (string | false | null | undefined)[]): string | u
   if (kept.length === 0) return undefined;
   return kept.map((p) => (kept.length > 1 ? `(${p})` : p)).join(' AND ');
 };
-
-/** A floating-timestamp bound, the shape RDW's `*_dt` columns use. */
-export const ts = (isoDate: string): string => `${isoDate}T00:00:00.000`;

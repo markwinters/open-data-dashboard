@@ -225,6 +225,7 @@ export function OverviewView({ mode }: { mode: SourceMode }) {
                 },
               ]}
               formatY={tick}
+              formatExact={num}
               formatX={(v) => String(v)}
               unit="voertuigen"
             />
@@ -253,6 +254,7 @@ export function OverviewView({ mode }: { mode: SourceMode }) {
                 scaleLabel="voertuigen"
                 columnLabel="bouwjaren"
                 formatValue={compact}
+                formatExact={num}
               />
             ) : (
               <p className="chart-empty">Geen waarden in deze selectie.</p>
@@ -275,6 +277,7 @@ export function OverviewView({ mode }: { mode: SourceMode }) {
             <BarChart
               data={(types.data ?? []).slice(0, 8).map((d) => ({ label: d.label, value: d.count }))}
               formatValue={compact}
+              formatExact={num}
               labelWidth={120}
             />
           </ChartCard>
@@ -303,6 +306,7 @@ export function OverviewView({ mode }: { mode: SourceMode }) {
             <BarChart
               data={(brands.data ?? []).map((d) => ({ label: d.label, value: d.count }))}
               formatValue={compact}
+              formatExact={num}
               labelWidth={130}
             />
           </ChartCard>
@@ -326,6 +330,7 @@ export function OverviewView({ mode }: { mode: SourceMode }) {
                 .slice(0, 7)
                 .map((d) => ({ label: d.label, value: d.count, colour: fuelColour(d.label) }))}
               formatValue={compact}
+              formatExact={num}
               labelWidth={104}
             />
           </ChartCard>

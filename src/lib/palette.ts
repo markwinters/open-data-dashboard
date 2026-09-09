@@ -50,18 +50,6 @@ export function sequential(t: number): string {
   return SEQUENTIAL_STEPS[index]!;
 }
 
-/**
- * An ordinal ramp for discrete ordered categories. It starts at step 250 so the
- * lightest mark still clears 2:1 against the light surface.
- */
-export function ordinal(index: number, count: number): string {
-  if (count <= 1) return SEQUENTIAL_STEPS[8]!;
-  const start = 3; // step 250
-  const end = SEQUENTIAL_STEPS.length - 3; // step 600
-  const position = start + Math.round((index / (count - 1)) * (end - start));
-  return SEQUENTIAL_STEPS[Math.min(SEQUENTIAL_STEPS.length - 1, position)]!;
-}
-
 /* ------------------------------------------------- stable entity → hue maps */
 
 /**

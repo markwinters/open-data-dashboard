@@ -19,6 +19,12 @@ interface LineChartProps {
   height?: number;
   formatY?: (value: number) => string;
   formatX?: (value: number) => string;
+  /**
+   * Value shown on hover. Axis ticks are abbreviated to stay legible, but the
+   * tooltip is where a reader goes for the real number, so it defaults to
+   * `formatY` and should be given the exact formatter wherever they differ.
+   */
+  formatExact?: (value: number) => string;
   /** Unit shown in the tooltip after the value. */
   unit?: string;
   /** Draw a 10%-opacity wash under the line. Single-series charts only. */
@@ -34,10 +40,12 @@ export function LineChart({
   height = 260,
   formatY = (v) => v.toLocaleString('nl-NL'),
   formatX = (v) => String(v),
+  formatExact,
   unit,
   area = false,
   zeroBaseline = true,
 }: LineChartProps) {
+  const exact = formatExact ?? formatY;
   const [ref, width] = useMeasure<HTMLDivElement>();
   const { tip, show, hide } = useTooltip();
 
@@ -93,7 +101,7 @@ export function LineChart({
       .map((s) => {
         const point = s.points.find((p) => p.x === nearest);
         return point && point.y != null
-          ? { label: s.label, value: `${formatY(point.y)}${unit ? ` ${unit}` : ''}`, colour: s.colour }
+          ? { label: s.label, value: `${exact(point.y)}${unit ? ` ${unit}` : ''}`, colour: s.colour }
           : null;
       })
       .filter((row): row is NonNullable<typeof row> => row !== null);

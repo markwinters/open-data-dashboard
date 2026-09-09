@@ -20,6 +20,15 @@ import type { Row } from '../mock/soqlEngine';
 
 const PLATES_PER_REQUEST = 180;
 const CONCURRENCY = 4;
+/** Rows fetched per request while paging one batch of plates. */
+const ROWS_PER_PAGE = 5000;
+/**
+ * A defensive ceiling on pages per batch. Reaching it would mean ~275 detail
+ * rows for every plate in the batch, which no RDW detail table produces - so it
+ * indicates something is wrong rather than a large-but-real result, and it is
+ * reported rather than silently swallowed.
+ */
+const MAX_PAGES_PER_BATCH = 10;
 
 function chunk<T>(items: readonly T[], size: number): T[][] {
   const out: T[][] = [];
@@ -67,15 +76,33 @@ export async function hydrate(
 
   const batches = chunk(unique, PLATES_PER_REQUEST);
   const tasks = batches.map((batch) => async () => {
-    const q: SoqlQuery = {
+    const base: SoqlQuery = {
       where: options.where
         ? `${inList(keyField, batch)} AND (${options.where})`
         : inList(keyField, batch),
-      // A detail table can hold several rows per key; leave headroom for that.
-      limit: batch.length * 12,
     };
-    if (options.select) q.select = options.select;
-    return query(mode, dataset, q, { signal: options.signal });
+    if (options.select) base.select = options.select;
+
+    // How many rows a batch of plates yields is not knowable in advance: a
+    // vehicle has one fuel row or two, but it can carry dozens of inspection
+    // defects. A fixed ceiling would silently drop the tail and quietly
+    // undercount, so each batch is paged until a short page ends it.
+    const rows: Row[] = [];
+    for (let page = 0; page < MAX_PAGES_PER_BATCH; page++) {
+      const chunkRows = await query(
+        mode,
+        dataset,
+        { ...base, limit: ROWS_PER_PAGE, offset: page * ROWS_PER_PAGE },
+        { signal: options.signal },
+      );
+      rows.push(...chunkRows);
+      if (chunkRows.length < ROWS_PER_PAGE) return rows;
+    }
+    console.warn(
+      `hydrate(${dataset}): batch of ${batch.length} keys still returning full pages after ` +
+        `${MAX_PAGES_PER_BATCH} - results may be incomplete.`,
+    );
+    return rows;
   });
 
   for (const rows of await pooled(tasks, CONCURRENCY)) {
@@ -89,20 +116,4 @@ export async function hydrate(
     }
   }
   return byKey;
-}
-
-/** Pages a dataset past Socrata's per-request ceiling. */
-export async function fetchPaged(
-  mode: SourceMode,
-  dataset: DatasetKey,
-  base: SoqlQuery,
-  total: number,
-  signal?: AbortSignal,
-): Promise<Row[]> {
-  const pageSize = 5000;
-  const pages = Math.ceil(total / pageSize);
-  const tasks = Array.from({ length: pages }, (_, page) => async () =>
-    query(mode, dataset, { ...base, limit: Math.min(pageSize, total - page * pageSize), offset: page * pageSize }, { signal }),
-  );
-  return (await pooled(tasks, CONCURRENCY)).flat();
 }
