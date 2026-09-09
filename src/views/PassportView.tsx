@@ -626,6 +626,23 @@ export function PassportView({
                 })}
               </div>
             )}
+            <p className="card__note">
+              <a
+                href="https://ovi.rdw.nl/"
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                Check een kenteken
+              </a>{' '}
+              ·{' '}
+              <a
+                href="https://terugroepregister.rdw.nl/Pages/Terugroepregister.aspx"
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                zoek alle acties in het terugroepregister
+              </a>
+            </p>
           </ChartCard>
 
           <ChartCard
@@ -642,6 +659,23 @@ export function PassportView({
               </Spec>
             </div>
             {odometer.reason ? <p className="card__note">{odometer.reason}</p> : null}
+            <p className="card__note">
+              <a
+                href="https://tellerstandcontroleren.rdw.nl/"
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                Controleer een precieze tellerstand
+              </a>{' '}
+              ·{' '}
+              <a
+                href="https://tellerrapportuitgebreidaanvragen.rdw.nl/particulier"
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                vraag het volledige RDW-Voertuigrapport aan
+              </a>
+            </p>
           </ChartCard>
 
           <ChartCard

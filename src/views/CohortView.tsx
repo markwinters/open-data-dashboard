@@ -9,7 +9,7 @@ import { BarChart } from '../charts/BarChart';
 import { Heatmap } from '../charts/Heatmap';
 import { LineChart } from '../charts/LineChart';
 import { StatTile } from '../charts/Figures';
-import { ALL_PAIRS_SERIES_CAP, POWERTRAIN_ORDER, powertrainColour, seriesVar } from '../lib/palette';
+import { ALL_PAIRS_SERIES_CAP, POWERTRAIN_ORDER, powertrainColour, seriesVar, type Powertrain } from '../lib/palette';
 import { compact, euro, num, num1, percent, tick, titleCase } from '../lib/format';
 import { fetchChargingPoints, EXTERNAL_SOURCES } from '../lib/externalApi';
 
@@ -190,6 +190,25 @@ export function CohortView({ mode }: { mode: SourceMode }) {
       .filter(([, b]) => b.vehicles >= 5)
       .sort((a, b) => a[0] - b[0])
       .map(([year, b]) => ({ x: year, y: b.defects / b.vehicles }));
+  }, [vehicles]);
+
+  /* The fuel dataset reports registered CO2 per kenteken. Averaging it over the
+     sample per powertrain is the cheapest CO2 story the joined data can tell. */
+  const co2PerPowertrain = useMemo(() => {
+    const byType = new Map<Powertrain, number[]>();
+    for (const vehicle of vehicles) {
+      if (vehicle.powertrain === 'Elektrisch' || vehicle.co2 == null || vehicle.co2 <= 0) continue;
+      const list = byType.get(vehicle.powertrain) ?? [];
+      list.push(vehicle.co2);
+      byType.set(vehicle.powertrain, list);
+    }
+    return [...byType.entries()]
+      .map(([powertrain, values]) => ({
+        label: powertrain,
+        value: Math.round(mean(values) ?? 0),
+        colour: powertrainColour(powertrain),
+      }))
+      .sort((a, b) => b.value - a.value);
   }, [vehicles]);
 
   const set = <K extends keyof CohortFilters>(key: K, value: CohortFilters[K]) =>
@@ -452,6 +471,28 @@ export function CohortView({ mode }: { mode: SourceMode }) {
               height={320}
               formatX={tick}
               formatExactX={num}
+            />
+          </ChartCard>
+
+          <ChartCard
+            title="CO₂ per aandrijflijn"
+            subtitle="Gemiddelde geregistreerde uitstoot in de steekproef, per brandstofregel"
+            sources={['fuel']}
+            span="half"
+            loading={cohort.loading}
+            refreshing={cohort.refreshing}
+            error={cohort.error}
+            note="De brandstofdataset kent honderden CO₂-waarden per kenteken; deze middeling over de steekproef blijft dicht bij de bron. Volledig elektrische voertuigen staan geregistreerd met 0 g/km en horen hier niet thuis."
+            table={{
+              columns: ['Aandrijflijn', 'Gemiddelde CO₂ (g/km)'],
+              rows: co2PerPowertrain.map((d) => [d.label, d.value]),
+            }}
+          >
+            <BarChart
+              data={co2PerPowertrain}
+              formatValue={num}
+              formatExact={num}
+              labelWidth={150}
             />
           </ChartCard>
 

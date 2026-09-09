@@ -4,18 +4,76 @@ import { DATASETS, datasetPage, type DatasetKey } from './data/datasets';
 import { OverviewView } from './views/OverviewView';
 import { CohortView } from './views/CohortView';
 import { PassportView } from './views/PassportView';
+import { ParkingView } from './views/ParkingView';
 import { num } from './lib/format';
 
-type Tab = 'overzicht' | 'analyse' | 'paspoort';
+type Tab = 'overzicht' | 'analyse' | 'paspoort' | 'parkeren';
 type Theme = 'system' | 'light' | 'dark';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'overzicht', label: 'Overzicht' },
   { id: 'analyse', label: 'Verbonden analyse' },
   { id: 'paspoort', label: 'Voertuigpaspoort' },
+  { id: 'parkeren', label: 'Parkeren' },
 ];
 
 const THEME_KEY = 'rdw-dashboard-theme';
+
+/** Gratis verdieping die particulieren zelf kunnen raadplegen, buiten dit
+    dashboard om. De koppeling blijft op de exacte pagina, zodat de bezoeker
+    alleen het kenteken hoeft in te voeren. */
+const CITIZEN_LINKS: { label: string; url: string; note: string }[] = [
+  {
+    label: 'RDW-kentekencheck',
+    url: 'https://ovi.rdw.nl/',
+    note: 'alle openbare gegevens van een kenteken: APK-datum, tellerstandoordeel, aantal eigenaren en openstaande terugroepacties',
+  },
+  {
+    label: 'RDW-Voertuigrapport',
+    url: 'https://tellerrapportuitgebreidaanvragen.rdw.nl/particulier',
+    note: 'gratis voor eigenaar of houder met DigiD: kilometerstand-overzicht, APK-geschiedenis, aantal eigenaren en catalogusprijs',
+  },
+  {
+    label: 'RDW · kilometerstand controleren',
+    url: 'https://tellerstandcontroleren.rdw.nl/',
+    note: 'oordeel over een precieze tellerstand van een personen- of lichte bedrijfsauto',
+  },
+  {
+    label: 'RDW · terugroepregister',
+    url: 'https://terugroepregister.rdw.nl/Pages/Terugroepregister.aspx',
+    note: 'alle terugroepacties zoeken op merk, type en periode, sinds 2012',
+  },
+  {
+    label: 'Mijn RDW',
+    url: 'https://mijn.rdw.nl/',
+    note: 'met DigiD: je voertuigen op naam, verzekering, schorsing, diefstalmelding en eigen terugroepacties',
+  },
+  {
+    label: 'RDW · voertuigen tot 9 jaar terug',
+    url: 'https://voertuigenopnaamtot9jaarterug.rdw.nl/',
+    note: 'gratis digitaal overzicht van alle voertuigen die de afgelopen 9 jaar op je naam stonden',
+  },
+  {
+    label: 'Meldpunt ILT',
+    url: 'https://e-loket.ilent.nl/formulier/nl-NL/DefaultEnvironment/MOv_002.aspx/CB_Authenticatie/CB_Inleiding',
+    note: 'veiligheids- of milieugebrek van een type melden bij de Inspectie Leefomgeving en Transport',
+  },
+  {
+    label: 'AutoWeek kentekencheck',
+    url: 'https://www.autoweek.nl/kentekencheck',
+    note: 'gratis: bouwjaar, vermogen, aantal eigenaren, verbruik, emissieklasse en afmetingen',
+  },
+  {
+    label: 'Kentekenfeiten.nl',
+    url: 'https://kentekenfeiten.nl/',
+    note: 'gratis check plus PDF: terugroepacties, WAM, APK-keuringshistorie, tellerstandoordeel en wegenbelasting',
+  },
+  {
+    label: 'Schades.nl kentekencheck',
+    url: 'https://www.schades.nl/',
+    note: 'gratis kijkje in schademeldingen die op een kenteken geregistreerd staan',
+  },
+];
 
 const THEME_LABEL: Record<Theme, string> = {
   system: 'Thema: systeem',
@@ -174,6 +232,8 @@ export default function App() {
           <OverviewView mode={mode} />
         ) : tab === 'analyse' ? (
           <CohortView mode={mode} />
+        ) : tab === 'parkeren' ? (
+          <ParkingView />
         ) : (
           <PassportView mode={mode} initialPlate={initialPlate ?? undefined} />
         )}
@@ -190,6 +250,23 @@ export default function App() {
                     {DATASETS[key].name}
                   </a>{' '}
                   <span style={{ color: 'var(--text-muted)' }}>{DATASETS[key].id}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h4>Voor particulieren</h4>
+            <p style={{ maxWidth: '40ch' }}>
+              Meer over uw eigen of een tweedehands voertuig vindt u gratis bij de bron of bij
+              een van deze aanbieders — rechtstreeks op de pagina, zonder zoeken.
+            </p>
+            <ul>
+              {CITIZEN_LINKS.map((link) => (
+                <li key={link.url}>
+                  <a href={link.url} target="_blank" rel="noreferrer noopener">
+                    {link.label}
+                  </a>
+                  <span style={{ color: 'var(--text-muted)' }}> — {link.note}</span>
                 </li>
               ))}
             </ul>

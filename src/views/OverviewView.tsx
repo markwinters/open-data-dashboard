@@ -11,14 +11,20 @@ import {
   vehicleTypeMix,
 } from '../data/queries';
 import { ChartCard } from '../charts/ChartCard';
-import { LineChart } from '../charts/LineChart';
+import { LineChart, type LinePoint } from '../charts/LineChart';
 import { BarChart } from '../charts/BarChart';
 import { Heatmap } from '../charts/Heatmap';
 import { StatTile } from '../charts/Figures';
 import { Gauge, Odometer, Telltale, TelltalePanel } from '../charts/Instruments';
 import { compact, num, num1, percent, tick } from '../lib/format';
-import { fuelColour } from '../lib/palette';
-import { fetchCbsVehiclePark, EXTERNAL_SOURCES } from '../lib/externalApi';
+import { fuelColour, seriesVar } from '../lib/palette';
+import {
+  fetchCbsVehiclePark,
+  fetchCbsRoadEmissions,
+  fetchCbsFuelPrices,
+  fetchCbsRoadDeaths,
+  EXTERNAL_SOURCES,
+} from '../lib/externalApi';
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -46,6 +52,12 @@ export function OverviewView({ mode }: { mode: SourceMode }) {
   /* CBS benchmark: the *active* fleet (vehicles that actually drove last year)
      against the register's full count. Optional, cached, national. */
   const cbs = useAsync((signal) => fetchCbsVehiclePark(signal), []);
+
+  /* National context from CBS and the RDW parking catalogue - same OData/SoQL
+     shape as the benchmark, all live, all optional-cached. */
+  const emissions = useAsync((signal) => fetchCbsRoadEmissions(signal), []);
+  const prices = useAsync((signal) => fetchCbsFuelPrices(signal), []);
+  const deaths = useAsync((signal) => fetchCbsRoadDeaths(signal), []);
 
   const total = kpis.data?.total ?? null;
   const series = registrations.data ?? [];
@@ -132,6 +144,47 @@ export function OverviewView({ mode }: { mode: SourceMode }) {
       .reduce((sum, row) => sum + row.count, 0);
     return judged > 0 ? bad / judged : null;
   }, [odometer.data]);
+
+  /* National context, CBS tables. CO2 ships in million kg; the chart reads in
+     megaton, so values are divided by 1000 at the boundary. */
+  const co2Trend = useMemo(
+    () => (emissions.data?.series ?? []).map((d) => ({ x: d.year, y: d.co2MlnKg / 1000 })),
+    [emissions.data],
+  );
+
+  const co2ByCategory = useMemo(
+    () =>
+      (emissions.data?.byCategory ?? [])
+        .slice(0, 6)
+        .map((d) => ({ label: d.label, value: d.co2MlnKg / 1000 })),
+    [emissions.data],
+  );
+
+  const priceChart = useMemo(() => {
+    const rows = prices.data ?? [];
+    const labelOf = (period: string): string => `${period.slice(0, 4)}·K${period.slice(-2)}`;
+    const seriesOf = (key: 'benzine' | 'diesel' | 'lpg' | 'elektrisch'): LinePoint[] =>
+      rows.map((row, i) => ({ x: i, y: row[key] }));
+    return {
+      labels: rows.map((row) => labelOf(row.period)),
+      series: [
+        { key: 'benzine', label: 'Benzine Euro95', colour: seriesVar(0), points: seriesOf('benzine') },
+        { key: 'diesel', label: 'Diesel', colour: seriesVar(1), points: seriesOf('diesel') },
+        { key: 'lpg', label: 'Lpg', colour: seriesVar(2), points: seriesOf('lpg') },
+        { key: 'elektrisch', label: 'Elektriciteit', colour: seriesVar(3), points: seriesOf('elektrisch') },
+      ],
+    };
+  }, [prices.data]);
+
+  const deathsTrend = useMemo(
+    () => (deaths.data?.series ?? []).map((d) => ({ x: d.year, y: d.count })),
+    [deaths.data],
+  );
+
+  const deathsByMode = useMemo(
+    () => (deaths.data?.byMode ?? []).slice(0, 6).map((d) => ({ label: d.label, value: d.count })),
+    [deaths.data],
+  );
 
   return (
     <>
@@ -485,6 +538,118 @@ export function OverviewView({ mode }: { mode: SourceMode }) {
                 de rest van dit overzicht is gewoon berekend.
               </p>
             )}
+          </ChartCard>
+        </div>
+      </section>
+
+      <section className="section">
+        <div className="section__head">
+          <p className="eyebrow">Landelijke context</p>
+          <h2 className="section__title">Het wegverkeer, buiten het register</h2>
+          <p className="section__lede">
+            Het register vertelt wat er staat geregistreerd. Deze cijfers vertellen wat het wegverkeer{' '}
+            <em>doet</em>: hoeveel CO₂ het uitstoot, wat een liter kost en wat verkeer aan levens kost.{' '}
+            Allemaal CBS-publieke statistiek (CC-BY 4.0), los van de live/demo-schakelaar gelezen.
+          </p>
+        </div>
+        <div className="grid">
+          <ChartCard
+            title="CO₂ door het wegverkeer"
+            subtitle={`Totaal over de hele vloot, ${emissions.data?.series.length ?? 0} jaar reeks — het register telt voertuigen, het CBS telt hun uitstoot`}
+            sources={[EXTERNAL_SOURCES.cbsEmissions]}
+            span="full"
+            loading={emissions.loading}
+            refreshing={emissions.refreshing}
+            error={emissions.error}
+            table={{
+              columns: ['Jaar', 'CO₂ (megaton)'],
+              rows: co2Trend.map((d) => [String(d.x), Number(d.y.toFixed(1))]),
+            }}
+            note="CBS-tafel 85347NED meet de feitelijke emissies door het verbranden van brandstof (in mln kg, hier omgerekend naar megaton). De balken daaronder splitsen het laatste jaar per voertuigsoort."
+          >
+            <LineChart
+              series={[
+                { key: 'co2', label: 'CO₂', colour: 'var(--series-1)', points: co2Trend },
+              ]}
+              area
+              height={260}
+              formatY={tick}
+              formatExact={num1}
+              unit="Mt"
+            />
+            {co2ByCategory.length > 1 ? (
+              <BarChart
+                data={co2ByCategory}
+                formatValue={num1}
+                labelWidth={150}
+                rowHeight={26}
+              />
+            ) : null}
+          </ChartCard>
+
+          <ChartCard
+            title="Pompprijzen per kwartaal"
+            subtitle="Inclusief accijns en btw — sinds 2020"
+            sources={[EXTERNAL_SOURCES.cbsFuelPrices]}
+            legend={priceChart.series.map((s) => ({ label: s.label, colour: s.colour, shape: 'line' as const }))}
+            span="half"
+            loading={prices.loading}
+            refreshing={prices.refreshing}
+            error={prices.error}
+            table={{
+              columns: ['Kwartaal', 'Benzine', 'Diesel', 'Lpg', 'Elektriciteit'],
+              rows: (prices.data ?? []).map((r) => [
+                `${r.period.slice(0, 4)}·K${r.period.slice(-2)}`,
+                r.benzine ?? 0,
+                r.diesel ?? 0,
+                r.lpg ?? 0,
+                r.elektrisch ?? 0,
+              ]),
+            }}
+            note="Benzine, diesel en lpg in euro per liter; elektriciteit in euro per kWh — de reeksen zijn dus wel vergelijkbaar, de eenheid niet."
+          >
+            <LineChart
+              series={priceChart.series}
+              height={300}
+              formatY={(v) => num1(v)}
+              formatExact={(v) => num1(v)}
+              formatX={(v) => priceChart.labels[Math.round(v)] ?? ''}
+              unit="€"
+            />
+          </ChartCard>
+
+          <ChartCard
+            title="Verkeersdoden per jaar"
+            subtitle={`CBS telt doden die binnen 30 dagen na het ongeval overleden`}
+            sources={[EXTERNAL_SOURCES.cbsRoadDeaths]}
+            span="half"
+            loading={deaths.loading}
+            refreshing={deaths.refreshing}
+            error={deaths.error}
+            table={{
+              columns: ['Jaar', 'Verkeersdoden'],
+              rows: deathsTrend.map((d) => [String(d.x), d.y]),
+            }}
+            note={`${deaths.data?.latestYear ?? 'Het recentste jaar'} vielen ${num(deaths.data?.latestTotal)} doden${deathsByMode[0] ? `, de meeste onder ${deathsByMode[0].label.toLowerCase()}s (${num(deathsByMode[0].value)})` : ''}.`}
+          >
+            <LineChart
+              series={[
+                { key: 'doden', label: 'Verkeersdoden', colour: 'var(--series-2)', points: deathsTrend },
+              ]}
+              area
+              height={220}
+              formatY={tick}
+              formatExact={num}
+              unit="doden"
+            />
+            {deathsByMode.length > 1 ? (
+              <BarChart
+                data={deathsByMode}
+                formatValue={num}
+                labelWidth={160}
+                rowHeight={24}
+              />
+            ) : null}
           </ChartCard>
         </div>
       </section>
