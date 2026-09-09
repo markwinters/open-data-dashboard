@@ -12,7 +12,17 @@ html {
 
 body {
   margin: 0;
-  background: var(--plane);
+  background-color: var(--plane);
+  /* A machined grain across the binnacle - two hairline gradients, nothing
+     heavy enough to compete with the data sitting on top of it. */
+  background-image:
+    repeating-linear-gradient(
+      115deg,
+      transparent 0 3px,
+      color-mix(in srgb, var(--text-primary) 2%, transparent) 3px 4px
+    ),
+    radial-gradient(120% 70% at 50% -10%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 70%);
+  background-attachment: fixed;
   color: var(--text-primary);
   font-family: var(--font-sans);
   font-size: 14px;
@@ -56,9 +66,10 @@ a {
   position: sticky;
   top: 0;
   z-index: 30;
-  background: color-mix(in srgb, var(--plane) 88%, transparent);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--plane) 82%, transparent);
+  backdrop-filter: blur(14px) saturate(1.2);
+  border-bottom: 1px solid var(--bezel);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--bezel-hi) 40%, transparent) inset;
 }
 
 .masthead__inner {
@@ -79,35 +90,41 @@ a {
 }
 
 .brand__mark {
+  font-family: var(--font-mono);
   font-weight: 700;
-  letter-spacing: -0.02em;
-  font-size: 16px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 13px;
 }
 
 .brand__sub {
   color: var(--text-muted);
-  font-size: 12px;
-  letter-spacing: 0.02em;
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
 }
 
 .tabs {
   display: flex;
-  gap: 4px;
-  background: var(--surface-2);
+  gap: 3px;
+  background: var(--surface-sunken);
   padding: 3px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
+  border-radius: 9px;
+  border: 1px solid var(--bezel);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.35);
 }
 
 .tabs__tab {
   appearance: none;
   border: 0;
   background: transparent;
-  color: var(--text-secondary);
-  font: inherit;
-  font-weight: 500;
-  padding: 6px 14px;
-  border-radius: 8px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 7px;
   cursor: pointer;
 }
 
@@ -117,9 +134,9 @@ a {
 }
 
 .tabs__tab[aria-selected='true'] {
-  background: var(--surface-1);
+  background: linear-gradient(180deg, var(--surface-2), var(--surface-1));
   color: var(--text-primary);
-  box-shadow: var(--shadow);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--bezel-hi) 55%, transparent) inset;
 }
 
 .masthead__tools {
@@ -132,7 +149,10 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   font-weight: 600;
   padding: 5px 10px;
   border-radius: 999px;
@@ -237,18 +257,20 @@ a {
 }
 
 .eyebrow {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.09em;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--accent);
 }
 
 .section__title {
-  font-size: 19px;
-  font-weight: 650;
-  letter-spacing: -0.015em;
-  margin-top: 2px;
+  font-size: 21px;
+  font-weight: 640;
+  letter-spacing: -0.02em;
+  margin-top: 3px;
+  text-wrap: balance;
 }
 
 .section__lede {
@@ -287,11 +309,16 @@ a {
 /* ------------------------------------------------------------------ card -- */
 
 .card {
-  background: var(--surface-1);
-  border: 1px solid var(--border);
+  position: relative;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-2) 70%, var(--surface-1)) 0%,
+    var(--surface-1) 42%
+  );
+  border: 1px solid var(--bezel);
   border-radius: var(--radius-card);
-  padding: 18px 20px 14px;
-  box-shadow: var(--shadow);
+  padding: 16px 18px 12px;
+  box-shadow: var(--shadow), inset 0 1px 0 color-mix(in srgb, var(--bezel-hi) 45%, transparent);
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -309,9 +336,9 @@ a {
 }
 
 .card__title {
-  font-size: 15px;
+  font-size: 14.5px;
   font-weight: 650;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.005em;
 }
 
 .card__subtitle {
@@ -383,10 +410,11 @@ a {
 }
 
 .card__source span {
+  font-family: var(--font-mono);
   text-transform: uppercase;
-  letter-spacing: 0.07em;
-  font-weight: 700;
-  font-size: 10px;
+  letter-spacing: 0.14em;
+  font-weight: 600;
+  font-size: 9.5px;
 }
 
 .card__source a {
@@ -586,7 +614,9 @@ a {
 }
 
 .axis-text {
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.03em;
   fill: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -622,62 +652,6 @@ a {
 
 /* --------------------------------------------------------------- figures -- */
 
-.hero-band {
-  display: grid;
-  grid-template-columns: minmax(260px, 1fr) minmax(0, 2.1fr);
-  gap: 16px;
-  align-items: stretch;
-}
-
-@media (max-width: 900px) {
-  .hero-band {
-    grid-template-columns: 1fr;
-  }
-}
-
-.hero {
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow);
-  padding: 22px 24px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.hero__label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.hero__value {
-  font-size: 58px;
-  line-height: 1.03;
-  font-weight: 660;
-  letter-spacing: -0.03em;
-  margin-top: 8px;
-  /* Proportional figures: tabular-nums makes a display number look loose. */
-}
-
-.hero__unit {
-  font-size: 20px;
-  font-weight: 550;
-  color: var(--text-secondary);
-  margin-left: 8px;
-  letter-spacing: 0;
-}
-
-.hero__caption {
-  color: var(--text-secondary);
-  margin-top: 10px;
-  font-size: 12.5px;
-  max-width: 34ch;
-}
-
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
@@ -696,15 +670,20 @@ a {
 }
 
 .stat__label {
-  font-size: 12px;
-  color: var(--text-secondary);
-  font-weight: 500;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 600;
 }
 
 .stat__value {
-  font-size: 27px;
-  font-weight: 640;
-  letter-spacing: -0.02em;
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
   margin-top: 6px;
 }
 
@@ -755,79 +734,6 @@ a {
   flex: none;
 }
 
-.meter-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 16px;
-}
-
-.meter {
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow);
-  padding: 16px 18px;
-}
-
-.meter__head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 10px;
-}
-
-.meter__label {
-  font-size: 12.5px;
-  color: var(--text-secondary);
-}
-
-.meter__value {
-  font-size: 17px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
-}
-
-.meter__track {
-  margin-top: 10px;
-  height: 8px;
-  border-radius: 999px;
-  /* A lighter step of the same ramp, so state reads across the whole bar. */
-  background: var(--meter-track);
-  overflow: hidden;
-}
-
-.meter__fill {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-}
-
-.meter__status {
-  margin-top: 8px;
-  font-size: 11.5px;
-  color: var(--text-secondary);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.meter__status span {
-  font-size: 10px;
-}
-
-.meter__status--critical span {
-  color: var(--critical);
-}
-.meter__status--serious span {
-  color: var(--serious);
-}
-.meter__status--warning span {
-  color: var(--warning);
-}
-.meter__status--good span {
-  color: var(--good);
-}
-
 /* --------------------------------------------------------------- filters -- */
 
 .filters {
@@ -850,9 +756,10 @@ a {
 }
 
 .field__label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
@@ -1167,4 +1074,374 @@ a {
     transition: none !important;
     animation: none !important;
   }
+}
+
+/* ===========================================================================
+   INSTRUMENT CLUSTER
+   The one place the design is allowed to be loud. Everything around it stays
+   quiet so the cluster reads as the focal object rather than as more chrome.
+   =========================================================================== */
+
+.cluster {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(0, 1.35fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+@media (max-width: 1000px) {
+  .cluster {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cluster__binnacle {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px 22px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--bezel);
+  background:
+    radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 62%),
+    linear-gradient(180deg, var(--surface-2), var(--surface-1) 55%);
+  box-shadow: var(--shadow), inset 0 1px 0 color-mix(in srgb, var(--bezel-hi) 50%, transparent);
+}
+
+.cluster__dials {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+  gap: 14px;
+}
+
+/* ------------------------------------------------------------------ gauge -- */
+
+.gauge {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 12px 16px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--bezel);
+  background: linear-gradient(180deg, var(--surface-2), var(--surface-1) 60%);
+  box-shadow: var(--shadow), inset 0 1px 0 color-mix(in srgb, var(--bezel-hi) 40%, transparent);
+}
+
+.gauge svg {
+  display: block;
+}
+
+.gauge__face {
+  fill: var(--surface-sunken);
+}
+
+.gauge__bezel {
+  fill: none;
+  stroke: var(--bezel);
+  stroke-width: 1;
+}
+
+.gauge__track {
+  stroke: var(--grid);
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+.gauge__redline {
+  stroke: var(--redline);
+  stroke-width: 5;
+  stroke-linecap: round;
+  opacity: 0.32;
+}
+
+.gauge__tick {
+  stroke: var(--scale-tick);
+  stroke-width: 1;
+}
+
+.gauge__tick--major {
+  stroke: var(--scale-ink);
+  stroke-width: 1.6;
+}
+
+.gauge__scale {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: var(--scale-tick);
+  font-variant-numeric: tabular-nums;
+}
+
+.gauge__needle {
+  stroke: var(--needle);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 5px var(--glow));
+}
+
+.gauge__hub {
+  fill: var(--bezel-hi);
+}
+
+.gauge__hub-pin {
+  fill: var(--surface-sunken);
+}
+
+.gauge__readout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+}
+
+.gauge__label {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.gauge__value {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.gauge__unit {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: 3px;
+}
+
+.gauge__caption {
+  font-size: 11px;
+  color: var(--text-muted);
+  max-width: 22ch;
+  line-height: 1.35;
+}
+
+/* --------------------------------------------------------------- odometer -- */
+
+.odometer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.odometer__label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.odometer__drums {
+  display: flex;
+  gap: 3px;
+  align-items: stretch;
+}
+
+/* Each digit sits on its own drum: a dark well with a machined highlight
+   across the middle, which is what makes a mechanical counter read as one. */
+.odometer__digit {
+  font-family: var(--font-mono);
+  font-size: 38px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 8px 8px 9px;
+  border-radius: 5px;
+  color: var(--text-primary);
+  background:
+    linear-gradient(
+      180deg,
+      var(--surface-sunken) 0%,
+      color-mix(in srgb, var(--bezel) 55%, var(--surface-sunken)) 48%,
+      var(--surface-sunken) 52%,
+      var(--surface-sunken) 100%
+    );
+  border: 1px solid var(--bezel);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.45);
+  font-variant-numeric: tabular-nums;
+}
+
+.odometer__sep {
+  align-self: flex-end;
+  font-family: var(--font-mono);
+  font-size: 30px;
+  color: var(--text-muted);
+  padding-bottom: 10px;
+}
+
+.odometer__caption {
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  max-width: 40ch;
+  line-height: 1.45;
+}
+
+/* -------------------------------------------------------------- telltales -- */
+
+.telltale-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.telltale {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 12px 13px;
+  border-radius: 9px;
+  border: 1px solid var(--bezel);
+  background: var(--surface-sunken);
+  /* An unlit lamp is present but dark, exactly as it is on a real cluster. */
+  color: var(--text-muted);
+}
+
+.telltale__lamp {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--text-primary) 4%, transparent);
+  color: var(--de-emphasis);
+}
+
+.telltale--lit .telltale__lamp {
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  box-shadow: 0 0 14px -2px currentColor;
+}
+
+.telltale--lit.telltale--warning {
+  color: var(--warning);
+  border-color: color-mix(in srgb, var(--warning) 40%, var(--bezel));
+}
+.telltale--lit.telltale--critical {
+  color: var(--critical);
+  border-color: color-mix(in srgb, var(--critical) 45%, var(--bezel));
+}
+.telltale--lit.telltale--serious {
+  color: var(--serious);
+  border-color: color-mix(in srgb, var(--serious) 42%, var(--bezel));
+}
+.telltale--lit.telltale--good {
+  color: var(--good);
+  border-color: color-mix(in srgb, var(--good) 38%, var(--bezel));
+}
+
+.telltale--lit .telltale__lamp {
+  color: currentColor;
+}
+
+.telltale__body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.telltale__label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.telltale--lit .telltale__label {
+  color: currentColor;
+}
+
+.telltale__value {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.telltale__detail {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+/* --------------------------------------------------------- plate & badges -- */
+
+.badge {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--surface-sunken);
+  border-color: var(--bezel);
+}
+
+.timeline__code,
+.suggestion,
+.spec__label {
+  font-family: var(--font-mono);
+}
+
+.spec__label {
+  letter-spacing: 0.1em;
+}
+
+.spec__value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.filters {
+  border-color: var(--bezel);
+  background: linear-gradient(180deg, var(--surface-2), var(--surface-1) 60%);
+}
+
+.stat,
+.passport__hero,
+.empty-state {
+  border-color: var(--bezel);
+  background: linear-gradient(180deg, var(--surface-2), var(--surface-1) 55%);
+  box-shadow: var(--shadow), inset 0 1px 0 color-mix(in srgb, var(--bezel-hi) 40%, transparent);
+}
+
+.tooltip {
+  border-color: var(--bezel);
+  background: var(--surface-2);
+}
+
+.tooltip__title {
+  font-family: var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 9.5px;
+}
+
+.tooltip__value {
+  font-family: var(--font-mono);
+}
+
+.table-view th {
+  font-family: var(--font-mono);
+  letter-spacing: 0.1em;
+  background: var(--surface-sunken);
+}
+
+.notice {
+  border-color: var(--bezel);
+  background: var(--surface-1);
 }

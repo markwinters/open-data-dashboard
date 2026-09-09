@@ -4,7 +4,7 @@ import { useAsync } from '../lib/useAsync';
 import { loadPassport, samplePlates } from '../data/queries';
 import { ChartCard } from '../charts/ChartCard';
 import { BarChart } from '../charts/BarChart';
-import { Meter } from '../charts/Figures';
+import { Telltale, TelltalePanel } from '../charts/Instruments';
 import { euro, num, num1, plate as formatPlate, shortDate, titleCase, toNumber } from '../lib/format';
 import { powertrainColour } from '../lib/palette';
 import type { Row } from '../mock/soqlEngine';
@@ -61,6 +61,24 @@ export function PassportView({ mode }: { mode: SourceMode }) {
       value: count,
     }));
   }, [data]);
+
+  /* The APK lamp is the one telltale with a threshold: expired burns red, and
+     the last two months before expiry burn amber, like a service reminder. */
+  const apk = useMemo(() => {
+    const raw = vehicle ? value(vehicle, 'vervaldatum_apk_dt') : null;
+    if (!raw) {
+      return { lit: false, level: 'warning' as const, detail: 'Geen vervaldatum geregistreerd' };
+    }
+    const expiry = new Date(raw.slice(0, 10));
+    const days = Math.round((expiry.getTime() - Date.now()) / 86_400_000);
+    if (days < 0) {
+      return { lit: true, level: 'critical' as const, detail: `Verlopen op ${shortDate(raw)}` };
+    }
+    if (days <= 60) {
+      return { lit: true, level: 'warning' as const, detail: `Verloopt over ${days} dagen` };
+    }
+    return { lit: false, level: 'good' as const, detail: `Geldig tot ${shortDate(raw)}` };
+  }, [vehicle]);
 
   const co2 = useMemo(() => {
     const values = (data?.fuels ?? [])
@@ -181,10 +199,72 @@ export function PassportView({ mode }: { mode: SourceMode }) {
           </div>
 
           <ChartCard
+            title="Waarschuwingslampjes"
+            subtitle="De signalen die het register zelf bijhoudt, als lampjes op het dashboard"
+            sources={['vehicles']}
+            span="full"
+            note="Een brandend lampje betekent hier hetzelfde als in de auto: er staat iets open."
+          >
+            <TelltalePanel>
+              <Telltale
+                kind="insurance"
+                label="WAM-verzekering"
+                lit={value(vehicle, 'wam_verzekerd') !== 'Ja'}
+                level="critical"
+                detail={
+                  value(vehicle, 'wam_verzekerd') === 'Ja'
+                    ? 'Wettelijke aansprakelijkheid gedekt'
+                    : 'Wettelijk verplichte dekking ontbreekt'
+                }
+              />
+              <Telltale
+                kind="recall"
+                label="Terugroepactie"
+                lit={value(vehicle, 'openstaande_terugroepactie_indicator') === 'Ja'}
+                level="serious"
+                detail={
+                  value(vehicle, 'openstaande_terugroepactie_indicator') === 'Ja'
+                    ? 'De fabrikant heeft een actie uitstaan'
+                    : 'Geen actie van de fabrikant open'
+                }
+              />
+              <Telltale
+                kind="inspection"
+                label="APK"
+                lit={apk.lit}
+                level={apk.level}
+                detail={apk.detail}
+              />
+              <Telltale
+                kind="export"
+                label="Exportmelding"
+                lit={value(vehicle, 'export_indicator') === 'Ja'}
+                level="warning"
+                detail={
+                  value(vehicle, 'export_indicator') === 'Ja'
+                    ? 'Staat geregistreerd voor export'
+                    : 'Staat niet voor export geregistreerd'
+                }
+              />
+              <Telltale
+                kind="taxi"
+                label="Taxi-indicatie"
+                lit={value(vehicle, 'taxi_indicator') === 'Ja'}
+                level="good"
+                detail={
+                  value(vehicle, 'taxi_indicator') === 'Ja'
+                    ? 'Geregistreerd voor taxivervoer'
+                    : 'Niet als taxi geregistreerd'
+                }
+              />
+            </TelltalePanel>
+          </ChartCard>
+
+          <ChartCard
             title="Uit het kentekenregister"
             subtitle="Gekentekende voertuigen — de spil waaraan de rest hangt"
             sources={['vehicles']}
-            span="two-thirds"
+            span="half"
           >
             <div className="spec-list">
               <Spec label="Merk">{titleCase(value(vehicle, 'merk') ?? '')}</Spec>
@@ -215,55 +295,6 @@ export function PassportView({ mode }: { mode: SourceMode }) {
               <Spec label="Laatste tenaamstelling">
                 {shortDate(value(vehicle, 'datum_tenaamstelling_dt'))}
               </Spec>
-            </div>
-          </ChartCard>
-
-          <ChartCard
-            title="Status"
-            subtitle="Signalen die het register zelf bijhoudt"
-            sources={['vehicles']}
-            span="third"
-          >
-            <div style={{ display: 'grid', gap: 12 }}>
-              <Meter
-                label="WAM-verzekering"
-                fraction={value(vehicle, 'wam_verzekerd') === 'Ja' ? 1 : 0}
-                valueText={value(vehicle, 'wam_verzekerd') === 'Ja' ? 'Verzekerd' : 'Niet verzekerd'}
-                level={value(vehicle, 'wam_verzekerd') === 'Ja' ? 'good' : 'critical'}
-                statusText={
-                  value(vehicle, 'wam_verzekerd') === 'Ja'
-                    ? 'Wettelijke aansprakelijkheid gedekt'
-                    : 'Wettelijk verplichte dekking ontbreekt'
-                }
-              />
-              <Meter
-                label="Terugroepactie"
-                fraction={value(vehicle, 'openstaande_terugroepactie_indicator') === 'Ja' ? 1 : 0}
-                valueText={
-                  value(vehicle, 'openstaande_terugroepactie_indicator') === 'Ja'
-                    ? 'Openstaand'
-                    : 'Geen'
-                }
-                level={
-                  value(vehicle, 'openstaande_terugroepactie_indicator') === 'Ja' ? 'serious' : 'good'
-                }
-                statusText={
-                  value(vehicle, 'openstaande_terugroepactie_indicator') === 'Ja'
-                    ? 'De fabrikant heeft een actie uitstaan'
-                    : 'Geen actie van de fabrikant open'
-                }
-              />
-              <Meter
-                label="Exportmelding"
-                fraction={value(vehicle, 'export_indicator') === 'Ja' ? 1 : 0}
-                valueText={value(vehicle, 'export_indicator') === 'Ja' ? 'Gemeld' : 'Nee'}
-                level={value(vehicle, 'export_indicator') === 'Ja' ? 'warning' : 'good'}
-                statusText={
-                  value(vehicle, 'export_indicator') === 'Ja'
-                    ? 'Staat geregistreerd voor export'
-                    : 'Staat niet voor export geregistreerd'
-                }
-              />
             </div>
           </ChartCard>
 
@@ -352,7 +383,7 @@ export function PassportView({ mode }: { mode: SourceMode }) {
             title="Gebreken per keuringsjaar"
             subtitle="Hoeveel gebreken keurmeesters per jaar noteerden"
             sources={['defectsFound']}
-            span="third"
+            span="half"
             table={{
               columns: ['Jaar', 'Gebreken'],
               rows: defectsByYear.map((d) => [d.label, d.value]),
@@ -374,7 +405,7 @@ export function PassportView({ mode }: { mode: SourceMode }) {
             title="Keuringshistorie"
             subtitle="Elke gebrekcode uit de APK, vertaald met de wettelijke gebrekenlijst"
             sources={['defectsFound', 'defectCodes']}
-            span="two-thirds"
+            span="full"
             note="Zonder de gebrekenlijst is de inspectiedataset een kolom met codes. De koppeling maakt er een leesbare historie van."
           >
             {data.defects.length === 0 ? (

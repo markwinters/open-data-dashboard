@@ -37,9 +37,14 @@ async function open(context, tab) {
   return page;
 }
 
-// The README shot.
+// The README shot. The design is dark-first - the cockpit is its home state -
+// so the hero image is captured there rather than in the daylight theme.
 {
-  const context = await browser.newContext({ viewport: { width: 1440, height: 1180 }, deviceScaleFactor: 2 });
+  const context = await browser.newContext({
+    viewport: { width: 1440, height: 1180 },
+    deviceScaleFactor: 2,
+    colorScheme: 'dark',
+  });
   const page = await open(context, null);
   await page.screenshot({ path: 'docs/overview.png' });
   console.log('wrote docs/overview.png');
@@ -53,19 +58,25 @@ const views = [
   ['paspoort', 'Voertuigpaspoort'],
 ];
 
-for (const width of [420, 900, 1500]) {
+for (const theme of ['dark', 'light']) {
+ for (const width of [420, 900, 1500]) {
   for (const [name, tab] of views) {
-    const context = await browser.newContext({ viewport: { width, height: 1000 }, deviceScaleFactor: 1 });
+    const context = await browser.newContext({
+      viewport: { width, height: 1000 },
+      deviceScaleFactor: 1,
+      colorScheme: theme,
+    });
     const page = await open(context, tab);
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );
     const ok = overflow <= 0;
     if (!ok) failures++;
-    console.log(`${ok ? 'ok  ' : 'FAIL'} ${name} @${width}px  horizontal overflow: ${overflow}px`);
-    if (outDir) await page.screenshot({ path: `${outDir}/${name}-${width}.png`, fullPage: true });
+    console.log(`${ok ? 'ok  ' : 'FAIL'} ${theme.padEnd(5)} ${name} @${width}px  horizontal overflow: ${overflow}px`);
+    if (outDir) await page.screenshot({ path: `${outDir}/${theme}-${name}-${width}.png`, fullPage: true });
     await context.close();
   }
+ }
 }
 
 await browser.close();

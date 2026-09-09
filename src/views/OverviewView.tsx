@@ -13,7 +13,8 @@ import { ChartCard } from '../charts/ChartCard';
 import { LineChart } from '../charts/LineChart';
 import { BarChart } from '../charts/BarChart';
 import { Heatmap } from '../charts/Heatmap';
-import { HeroFigure, Meter, StatTile } from '../charts/Figures';
+import { StatTile } from '../charts/Figures';
+import { Gauge, Odometer, Telltale, TelltalePanel } from '../charts/Instruments';
 import { compact, num, num1, percent, tick } from '../lib/format';
 import { fuelColour } from '../lib/palette';
 
@@ -89,12 +90,68 @@ export function OverviewView({ mode }: { mode: SourceMode }) {
 
   return (
     <>
-      <section className="hero-band">
-        <HeroFigure
-          label="Voertuigen in het kentekenregister"
-          value={total == null ? '—' : num(total)}
-          caption="Elk voertuig met een Nederlands kenteken, van personenauto tot oplegger. Dit is de spil waaraan alle andere RDW-datasets hangen."
-        />
+      {/* The cluster. A register only counts up, so the headline total is an
+          odometer; the bounded ratios are dials with a real scale and, where
+          the direction means danger, a redline. */}
+      <section className="cluster">
+        <div className="cluster__binnacle">
+          <Odometer
+            label="Kentekenregister"
+            value={total}
+            format={num}
+            caption="Elk voertuig met een Nederlands kenteken, van personenauto tot oplegger. Dit is de spil waaraan alle andere RDW-datasets hangen."
+          />
+          <TelltalePanel>
+            <Telltale
+              kind="recall"
+              label="Terugroepactie"
+              lit={(kpis.data?.openRecalls ?? 0) > 0}
+              level="serious"
+              value={compact(kpis.data?.openRecalls)}
+              detail="Voertuigen met een openstaande actie van de fabrikant"
+            />
+            <Telltale
+              kind="insurance"
+              label="Geen WAM-dekking"
+              lit={(kpis.data?.uninsured ?? 0) > 0}
+              level="critical"
+              value={compact(kpis.data?.uninsured)}
+              detail="Wettelijk verplichte verzekering ontbreekt"
+            />
+          </TelltalePanel>
+        </div>
+
+        <div className="cluster__dials">
+          <Gauge
+            label="Elektrisch"
+            value={electricShare}
+            max={0.5}
+            format={(v) => percent(v)}
+            tone="good"
+            caption="Aandeel elektrische brandstofregels in de vloot"
+          />
+          <Gauge
+            label="Terugroepacties"
+            value={recallShare}
+            max={0.1}
+            redlineFrom={0.05}
+            format={(v) => percent(v)}
+            tone="serious"
+            caption="Openstaand bij de fabrikant"
+          />
+          <Gauge
+            label="Onverzekerd"
+            value={uninsuredShare}
+            max={0.1}
+            redlineFrom={0.05}
+            format={(v) => percent(v)}
+            tone="critical"
+            caption="Zonder WAM-dekking op de weg"
+          />
+        </div>
+      </section>
+
+      <section className="section">
         <div className="stat-grid">
           <StatTile
             label="Personenauto's"
@@ -132,32 +189,6 @@ export function OverviewView({ mode }: { mode: SourceMode }) {
             value={compact(kpis.data?.uninsured)}
             hint={uninsuredShare == null ? undefined : `${percent(uninsuredShare)} van de vloot`}
             loading={kpis.loading}
-          />
-        </div>
-      </section>
-
-      <section className="section">
-        <div className="meter-grid">
-          <Meter
-            label="Elektrische brandstofregels"
-            fraction={electricShare ?? 0}
-            valueText={percent(electricShare)}
-            level="good"
-            statusText="Aandeel van de vloot met een elektrische aandrijflijn"
-          />
-          <Meter
-            label="Openstaande terugroepactie"
-            fraction={(recallShare ?? 0) * 10}
-            valueText={percent(recallShare)}
-            level={recallShare != null && recallShare > 0.05 ? 'serious' : 'warning'}
-            statusText="Fabrikant heeft een actie uitstaan (schaal 0–10%)"
-          />
-          <Meter
-            label="Zonder WAM-dekking"
-            fraction={(uninsuredShare ?? 0) * 10}
-            valueText={percent(uninsuredShare)}
-            level={uninsuredShare != null && uninsuredShare > 0.05 ? 'critical' : 'warning'}
-            statusText="Wettelijk verplichte verzekering ontbreekt (schaal 0–10%)"
           />
         </div>
       </section>

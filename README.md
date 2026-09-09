@@ -10,7 +10,8 @@ another the statutory list that turns those defect codes into sentences. Socrata
 **no server-side join**, so on their own each dataset answers only a narrow question.
 
 This dashboard's whole point is putting them back together. The interface is in Dutch,
-because the data is.
+because the data is — and it is built as an instrument cluster, because the subject
+supplies one.
 
 ![Overview](docs/overview.png)
 
@@ -37,7 +38,33 @@ rows. This is where facts appear that **no single dataset states**:
 
 **Voertuigpaspoort** — one licence plate resolved across six datasets in parallel:
 specifications, emissions per fuel row, body, axles, vehicle class, and the full
-inspection history with each defect code translated into its legal description.
+inspection history with each defect code translated into its legal description — under
+a row of warning lamps that light for exactly what the register flags.
+
+## The cluster
+
+The visual direction is a night cockpit, and it is not skin. RDW's register happens to
+carry precisely the signals a car shows on its own dashboard, so those become real
+telltales rather than another row of numbers:
+
+| Lamp | Lights when | Source column |
+|---|---|---|
+| Spanner | The manufacturer has an open recall | `openstaande_terugroepactie_indicator` |
+| Warning triangle | Statutory WAM insurance is missing | `wam_verzekerd` |
+| Clock | The APK has expired (red) or runs out within 60 days (amber) | `vervaldatum_apk_dt` |
+| Arrow out | The vehicle is registered for export | `export_indicator` |
+| Roof sign | Registered for taxi work | `taxi_indicator` |
+
+The other two forms follow the same logic. A register only ever counts up, so the
+headline total is an **odometer** — unlike a dial it needs no upper bound to stay
+honest. Bounded ratios are **dials**, each printing the range it is drawn to
+(`schaal 0–10% · rood vanaf 5%`) so a needle sitting low reads as a small share rather
+than a broken instrument, with a redline only where the direction genuinely means
+danger.
+
+Type carries it the rest of the way: prose stays in the system sans, and every number,
+label and readout wears the telemetry mono face. There are no webfonts — this is public
+data tooling, and a Google Fonts request on every load is a dependency it does not need.
 
 ## Running it
 
@@ -51,7 +78,8 @@ npm run check          # typecheck + tests + production build
 npm run verify:datasets # check every RDW resource id and column against the live API
 
 npm run build && npm run preview &
-npm run screenshots     # refresh docs/overview.png and assert no view scrolls sideways
+npm run screenshots     # refresh docs/overview.png; assert no view scrolls sideways
+                        # in either theme at 420 / 900 / 1500px
 ```
 
 An optional Socrata app token lifts the anonymous rate limit. Copy `.env.example` to
@@ -95,7 +123,9 @@ src/
   lib/dataSource.ts    live Socrata client + demo backend behind one contract
   lib/join.ts          chunked client-side joins across datasets
   lib/palette.ts       colour assignment rules
-  charts/              line, bar, stacked column, scatter, heatmap, figures
+  charts/              line, bar, stacked column, scatter, heatmap, stat tiles
+  charts/Instruments   the cluster: gauge, odometer, telltale lamps
+  styles/tokens.css    the cockpit and daylight themes
   views/               the three views
   mock/                the demo fleet and the SoQL evaluator
 ```
@@ -121,6 +151,11 @@ row.
 - **Sequential means one hue, and it is re-anchored per theme.** Step 100 always means
   "nearest the surface, near zero" — the palest blue on the light theme, the deepest
   on the dark one. Dark mode is a selected set of steps, not an automatic inversion.
+- **The restyle stopped at the chrome.** Going dark-first moved the chart surface, so
+  the series palette was re-validated against both new grounds rather than assumed:
+  dark slots 1–8 on `#14171b` (CVD ΔE 8.4, normal ΔE 19.3, all ≥ 3:1) and light on
+  `#fafbfc` (CVD ΔE 9.1, normal ΔE 19.6). Not one series hex changed. The cluster is
+  allowed to be loud; the data layer stays correct.
 - **Marks stay thin.** Bars cap at 24px with a 4px rounded data end and a square
   baseline; lines are 2px; a 2px gap in the surface colour separates stacked
   segments, and a 2px surface ring keeps end dots legible where lines cross. No

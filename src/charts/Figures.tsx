@@ -1,5 +1,4 @@
 import { linePath } from './core';
-import { STATUS, type StatusLevel } from '../lib/palette';
 
 interface StatTileProps {
   label: string;
@@ -69,64 +68,6 @@ export function StatTile({ label, value, delta, trend, hint, loading = false }: 
         )}
         {trend ? <Sparkline values={trend} /> : null}
       </div>
-    </div>
-  );
-}
-
-interface HeroProps {
-  label: string;
-  value: string;
-  unit?: string;
-  caption: string;
-}
-
-/** The one number the dashboard leads with. Exactly one per view. */
-export function HeroFigure({ label, value, unit, caption }: HeroProps) {
-  return (
-    <div className="hero">
-      <p className="hero__label">{label}</p>
-      <p className="hero__value">
-        {value}
-        {unit ? <span className="hero__unit">{unit}</span> : null}
-      </p>
-      <p className="hero__caption">{caption}</p>
-    </div>
-  );
-}
-
-interface MeterProps {
-  label: string;
-  /** 0..1 */
-  fraction: number;
-  valueText: string;
-  level?: StatusLevel;
-  /** The icon + label pairing that keeps a status from being colour-alone. */
-  statusText?: string;
-}
-
-/**
- * A single ratio against its whole. The unfilled track is a lighter step of the
- * same ramp, so state reads across the whole bar rather than only the fill.
- */
-export function Meter({ label, fraction, valueText, level, statusText }: MeterProps) {
-  const clamped = Math.min(1, Math.max(0, fraction));
-  const fill = level ? STATUS[level] : 'var(--seq-450)';
-  const icon = level === 'critical' ? '▲' : level === 'serious' ? '▲' : level === 'warning' ? '●' : '✓';
-  return (
-    <div className="meter">
-      <div className="meter__head">
-        <span className="meter__label">{label}</span>
-        <span className="meter__value">{valueText}</span>
-      </div>
-      <div className="meter__track" role="img" aria-label={`${label}: ${valueText}`}>
-        <span className="meter__fill" style={{ width: `${clamped * 100}%`, background: fill }} />
-      </div>
-      {statusText ? (
-        <p className={`meter__status meter__status--${level ?? 'good'}`}>
-          <span aria-hidden="true">{icon}</span>
-          {statusText}
-        </p>
-      ) : null}
     </div>
   );
 }
