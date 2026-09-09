@@ -1,0 +1,199 @@
+/* ---------------------------------------------------------------------------
+   Design tokens.
+
+   Values come from the validated reference data-viz palette. The categorical
+   slot ORDER is the colourblind-safety mechanism, not decoration: slots are
+   assigned in fixed order and never cycled. Verified with the palette
+   validator in both modes:
+     adjacent pairs, 8 slots  - light: CVD dE 9.1 / normal dE 19.6  PASS
+                                dark : CVD dE 8.4 / normal dE 19.3  PASS
+     all pairs, first 3 slots - light: CVD dE 9.2 / normal dE 24.0  PASS
+                                dark : CVD dE 9.4 / normal dE 20.9  PASS
+   Scatter/bubble use the all-pairs pairlist, so they cap at three series.
+--------------------------------------------------------------------------- */
+
+:root {
+  color-scheme: light;
+
+  /* surfaces & ink */
+  --plane: #f9f9f7;
+  --surface-1: #fcfcfb;
+  --surface-2: #f3f3ef;
+  --surface-sunken: #efeeea;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.10);
+  --border-strong: rgba(11, 11, 11, 0.18);
+  --shadow: 0 1px 2px rgba(11, 11, 11, 0.04), 0 8px 24px -12px rgba(11, 11, 11, 0.16);
+  --ghost: rgba(11, 11, 11, 0.04);
+
+  /* categorical slots - fixed order, never cycled */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #4a3aa7;
+  --series-8: #e34948;
+
+  /* sequential ramp (blue, light -> dark) */
+  --seq-100: #cde2fb;
+  --seq-150: #b7d3f6;
+  --seq-200: #9ec5f4;
+  --seq-250: #86b6ef;
+  --seq-300: #6da7ec;
+  --seq-350: #5598e7;
+  --seq-400: #3987e5;
+  --seq-450: #2a78d6;
+  --seq-500: #256abf;
+  --seq-550: #1c5cab;
+  --seq-600: #184f95;
+  --seq-650: #104281;
+  --seq-700: #0d366b;
+
+  /* diverging poles + neutral midpoint */
+  --div-neg: #2a78d6;
+  --div-mid: #f0efec;
+  --div-pos: #e34948;
+
+  /* status - fixed, never themed, never reused as a series */
+  --good: #0ca30c;
+  --warning: #fab219;
+  --serious: #ec835a;
+  --critical: #d03b3b;
+  --delta-up-good: #006300;
+
+  --accent: #2a78d6;
+  --de-emphasis: #c3c2b7;
+  /* Meter track: a lighter step of the same ramp as the fill. */
+  --meter-track: #cde2fb;
+  /* Ink set inside a filled heat cell: -low for cells near the surface,
+     -high for saturated ones. The pair swaps by mode, so a label always
+     clears contrast against the cell it sits in. */
+  --heat-ink-low: #0b0b0b;
+  --heat-ink-high: #ffffff;
+
+  --radius-card: 14px;
+  --radius-control: 8px;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+}
+
+/* Dark steps are selected for the dark surface - the same eight hues re-stepped,
+   never an automatic inversion. Declared under both the OS media query and the
+   explicit toggle so the toggle wins in both directions. */
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --plane: #0d0d0d;
+    --surface-1: #1a1a19;
+    --surface-2: #212120;
+    --surface-sunken: #131312;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.10);
+    --border-strong: rgba(255, 255, 255, 0.18);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 8px 24px -12px rgba(0, 0, 0, 0.8);
+    --ghost: rgba(255, 255, 255, 0.06);
+
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
+    --series-6: #008300;
+    --series-7: #9085e9;
+    --series-8: #e66767;
+
+    /* The sequential ramp is re-anchored, not inverted by accident: step 100
+       always means "nearest the surface, near zero". On a dark surface that is
+       the darkest blue, so the steps run dark -> light and more still reads as
+       more prominent. */
+    --seq-100: #0d366b;
+    --seq-150: #104281;
+    --seq-200: #184f95;
+    --seq-250: #1c5cab;
+    --seq-300: #256abf;
+    --seq-350: #2a78d6;
+    --seq-400: #3987e5;
+    --seq-450: #5598e7;
+    --seq-500: #6da7ec;
+    --seq-550: #86b6ef;
+    --seq-600: #9ec5f4;
+    --seq-650: #b7d3f6;
+    --seq-700: #cde2fb;
+
+    --div-neg: #3987e5;
+    --div-mid: #383835;
+    --div-pos: #e66767;
+
+    --delta-up-good: #0ca30c;
+    --accent: #3987e5;
+    --de-emphasis: #52514e;
+    --meter-track: #0d366b;
+    --heat-ink-low: #ffffff;
+    --heat-ink-high: #0b0b0b;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --plane: #0d0d0d;
+  --surface-1: #1a1a19;
+  --surface-2: #212120;
+  --surface-sunken: #131312;
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #898781;
+  --grid: #2c2c2a;
+  --axis: #383835;
+  --border: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 8px 24px -12px rgba(0, 0, 0, 0.8);
+  --ghost: rgba(255, 255, 255, 0.06);
+
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
+  --series-7: #9085e9;
+  --series-8: #e66767;
+
+  /* The sequential ramp is re-anchored, not inverted by accident: step 100
+     always means "nearest the surface, near zero". On a dark surface that is
+     the darkest blue, so the steps run dark -> light and more still reads as
+     more prominent. */
+  --seq-100: #0d366b;
+  --seq-150: #104281;
+  --seq-200: #184f95;
+  --seq-250: #1c5cab;
+  --seq-300: #256abf;
+  --seq-350: #2a78d6;
+  --seq-400: #3987e5;
+  --seq-450: #5598e7;
+  --seq-500: #6da7ec;
+  --seq-550: #86b6ef;
+  --seq-600: #9ec5f4;
+  --seq-650: #b7d3f6;
+  --seq-700: #cde2fb;
+
+  --div-neg: #3987e5;
+  --div-mid: #383835;
+  --div-pos: #e66767;
+
+  --delta-up-good: #0ca30c;
+  --accent: #3987e5;
+  --de-emphasis: #52514e;
+  --meter-track: #0d366b;
+  --heat-ink-low: #ffffff;
+  --heat-ink-high: #0b0b0b;
+}
