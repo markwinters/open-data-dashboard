@@ -105,11 +105,11 @@ export const DATASETS = {
 
   /** Body type. Joins the fleet to what the vehicle physically is. */
   body: {
-    id: '3huj-srit',
+    id: 'vezc-m2t6',
     name: 'Gekentekende voertuigen carrosserie',
     grain: 'One row per body record per vehicle.',
     joinKey: 'kenteken',
-    confidence: 'medium',
+    confidence: 'verified',
     required: false,
     fields: ['kenteken', 'carrosserie_volgnummer', 'type_carrosserie_europese_omschrijving'],
   },
@@ -141,15 +141,15 @@ export const DATASETS = {
     fields: ['gebrek_identificatie', 'gebrek_omschrijving', 'gebrek_artikel_nummer'],
   },
 
-  /** Axle-level detail - load, track width, suspension. Used on the passport. */
+  /** Axle-level detail - how many axles, and where each sits. Used on the passport. */
   axles: {
-    id: 'w4rt-e856',
+    id: '3huj-srit',
     name: 'Gekentekende voertuigen assen',
     grain: 'One row per axle per vehicle.',
     joinKey: 'kenteken',
-    confidence: 'medium',
+    confidence: 'verified',
     required: false,
-    fields: ['kenteken', 'as_nummer', 'aantal_assen', 'aangedreven_as', 'spoorbreedte'],
+    fields: ['kenteken', 'as_nummer', 'aantal_assen', 'plaatscode_as'],
   },
 
   /**
@@ -200,9 +200,63 @@ export const DATASETS = {
     name: 'Gekentekende voertuigen voertuigklasse',
     grain: 'One row per vehicle-class code per vehicle.',
     joinKey: 'kenteken',
-    confidence: 'medium',
+    confidence: 'verified',
     required: false,
-    fields: ['kenteken', 'volgnummer', 'code_toevoeging_uitvoering'],
+    fields: ['kenteken', 'carrosserie_volgnummer', 'voertuigklasse', 'voertuigklasse_omschrijving'],
+  },
+
+  /** EU subcategory - the finer grained cut of the vehicle class. Passport only. */
+  subcategory: {
+    id: '2ba7-embk',
+    name: 'Gekentekende voertuigen subcategorie',
+    grain: 'One row per subcategory record per vehicle.',
+    joinKey: 'kenteken',
+    confidence: 'verified',
+    required: false,
+    fields: [
+      'kenteken',
+      'subcategorie_voertuig_volgnummer',
+      'subcategorie_voertuig_europees',
+      'subcategorie_voertuig_europees_omschrijving',
+    ],
+  },
+
+  /** Statutory special features, as codes - taxi conversions, speed cut-offs, ... */
+  specialFeatures: {
+    id: '7ug8-2dtt',
+    name: 'Gekentekende voertuigen bijzonderheden',
+    grain: 'One row per special feature per vehicle.',
+    joinKey: 'kenteken',
+    confidence: 'verified',
+    required: false,
+    fields: ['kenteken', 'bijzonderheid_volgnummer', 'bijzonderheid_code', 'bijzonderheid_code_1'],
+  },
+
+  /** Track (rupsband) sets - the register treats a tracked vehicle as a special. */
+  trackSets: {
+    id: '3xwf-ince',
+    name: 'Gekentekende voertuigen rupsbandsets',
+    grain: 'One row per track set per vehicle.',
+    joinKey: 'kenteken',
+    confidence: 'verified',
+    required: false,
+    fields: [
+      'kenteken',
+      'rupsband_set_volgnr',
+      'geremde_rupsband_indicator',
+      'aangedreven_rupsband_indicator',
+    ],
+  },
+
+  /** The statutory lexicon behind the register's odometer-verdict reason codes. */
+  odometerExplanations: {
+    id: 'jqs4-4kvw',
+    name: 'Gekentekende voertuigen toelichting tellerstandoordeel',
+    grain: 'One row per explanation code in the statutory list.',
+    joinKey: 'code_toelichting_tellerstandoordeel',
+    confidence: 'verified',
+    required: false,
+    fields: ['code_toelichting_tellerstandoordeel', 'toelichting_tellerstandoordeel'],
   },
 } as const satisfies Record<string, DatasetSpec>;
 

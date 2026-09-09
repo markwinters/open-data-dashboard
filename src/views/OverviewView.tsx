@@ -18,6 +18,7 @@ import { StatTile } from '../charts/Figures';
 import { Gauge, Odometer, Telltale, TelltalePanel } from '../charts/Instruments';
 import { compact, num, num1, percent, tick } from '../lib/format';
 import { fuelColour } from '../lib/palette';
+import { fetchCbsVehiclePark, EXTERNAL_SOURCES } from '../lib/externalApi';
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -41,6 +42,10 @@ export function OverviewView({ mode }: { mode: SourceMode }) {
   const fuels = useAsync((signal) => fuelMix({ mode, signal }), [mode]);
   const grid = useAsync((signal) => typeByPeriod({ mode, signal }, from, CURRENT_YEAR), [mode, from]);
   const odometer = useAsync((signal) => odometerVerdictMix({ mode, signal }), [mode]);
+
+  /* CBS benchmark: the *active* fleet (vehicles that actually drove last year)
+     against the register's full count. Optional, cached, national. */
+  const cbs = useAsync((signal) => fetchCbsVehiclePark(signal), []);
 
   const total = kpis.data?.total ?? null;
   const series = registrations.data ?? [];
@@ -89,6 +94,30 @@ export function OverviewView({ mode }: { mode: SourceMode }) {
     kpis.data?.electricRows != null && total ? kpis.data.electricRows / total : null;
   const recallShare = kpis.data?.openRecalls != null && total ? kpis.data.openRecalls / total : null;
   const uninsuredShare = kpis.data?.uninsured != null && total ? kpis.data.uninsured / total : null;
+
+  /* CBS categories map onto the dashboard's own register counts. Not every
+     category has a registered counterpart; those get a "–" in the RDW column. */
+  const benchRows = useMemo(() => {
+    const k = kpis.data ?? null;
+    const match = (label: string): number | null => {
+      if (!k) return null;
+      if (label.startsWith('Totaal actief')) return k.total;
+      if (label.startsWith('Personenauto')) return k.passengerCars;
+      return null;
+    };
+    const rows = cbs.data ?? [];
+    return rows.slice(0, 6).map((d) => {
+      const rdw = match(d.label);
+      const distance = rdw != null && d.count > 0 ? (d.count - rdw) / d.count : null;
+      return {
+        label: d.label,
+        rdw,
+        cbs: d.count,
+        distance,
+        fill: d.count > 0 && rdw != null ? Math.min(100, Math.max(4, (rdw / d.count) * 100)) : 100,
+      };
+    });
+  }, [cbs.data, kpis.data]);
 
   /* Share of *judged* vehicles whose odometer series does not add up. The
      denominator is deliberately the judged set, not the whole fleet: a vehicle
@@ -389,6 +418,73 @@ export function OverviewView({ mode }: { mode: SourceMode }) {
               formatExact={num}
               labelWidth={104}
             />
+          </ChartCard>
+        </div>
+      </section>
+
+      <section className="section">
+        <div className="section__head">
+          <p className="eyebrow">IJking tegen het CBS</p>
+          <h2 className="section__title">Geregistreerd, of ook echt actief</h2>
+          <p className="section__lede">
+            RDW telt elk geregistreerd kenteken. Het CBS telt het{' '}
+            <em>actieve</em> park: voertuigen die in het jaar daarvoor ook daadwerkelijk in het
+            verkeer waren. Het verschil tussen de twee tells is dus geen fout — het is de afstand
+            tussen het register en de weg.
+          </p>
+        </div>
+        <div className="grid">
+          <ChartCard
+            title="Register tegen actief park"
+            subtitle="CBS StatLine tafel 85243NED, laatst berekende periode — het dashboard leest het register zelf"
+            sources={['vehicles', EXTERNAL_SOURCES.cbsStatLine]}
+            span="full"
+            loading={cbs.loading}
+            refreshing={cbs.refreshing}
+            error={cbs.error}
+            note="Het CBS telt op 1 januari van het jaar ná de meting, en een voertuig dat het hele voorgaande jaar onverzekerd was gaat niet mee. Daardoor ligt het CBS-cijfer structureel iets lager dan het register-cijfer."
+            table={{
+              columns: ['Categorie', 'RDW-register', 'CBS actief park', 'Verschil'],
+              rows: benchRows.map((d) => [
+                d.label,
+                d.rdw == null ? '–' : compact(d.rdw),
+                compact(d.cbs),
+                d.distance == null ? '–' : `${num1(d.distance * 100)}%`,
+              ]),
+            }}
+          >
+            {benchRows.length > 0 ? (
+              <div className="benchmark">
+                {benchRows.map((d) => (
+                  <div className="benchmark__row" key={d.label}>
+                    <span className="benchmark__label">{d.label}</span>
+                    <span className="benchmark__value">
+                      {d.rdw == null ? '–' : compact(d.rdw)}
+                      <span className="benchmark__src">RDW</span>
+                    </span>
+                    <span className="benchmark__bar" aria-hidden="true">
+                      <span className="benchmark__fill" style={{ width: `${d.fill}%` }} />
+                    </span>
+                    <span className="benchmark__value">
+                      {compact(d.cbs)}
+                      <span className="benchmark__src">CBS</span>
+                    </span>
+                    <span className="benchmark__delta">
+                      {d.distance == null
+                        ? '–'
+                        : d.distance >= 0
+                          ? `${num1(d.distance * 100)}% meer in het register`
+                          : `${num1(Math.abs(d.distance) * 100)}% minder actief`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="chart-empty">
+                De CBS-tafel antwoordde niet. De landelijke cijfers zijn daardoor niet beschikbaar;
+                de rest van dit overzicht is gewoon berekend.
+              </p>
+            )}
           </ChartCard>
         </div>
       </section>

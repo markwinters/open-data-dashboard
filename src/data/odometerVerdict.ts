@@ -9,11 +9,10 @@ import type { StatusLevel } from '../lib/palette';
  * a code saying why. It does not publish the reading, so there is no mileage
  * figure here, only whether the series holds up.
  *
- * The code list is small, fixed and statutory in character, so it is carried
- * here rather than fetched. RDW also publishes it as a lookup dataset
- * (`jqs4-4kvw`, "Tellerstandoordeel Trend Toelichting"); swapping this map for
- * that join is a one-function change once its column names are confirmed
- * against the live API.
+ * The code list is small, fixed and statutory in character. The dashboard swaps
+ * the list for RDW's own published explanation table (`jqs4-4kvw`) whenever it
+ * is reachable - this map is now the fallback for a passport whose lexicon
+ * request failed, not the primary source.
  */
 export const ODOMETER_REASONS: Record<string, string> = {
   '00': 'Elke geregistreerde stand lag hoger dan de vorige. De reeks is logisch verklaarbaar.',
@@ -52,10 +51,13 @@ export function readOdometerVerdict(
   verdictRaw: string | null,
   yearRaw: string | null,
   reasonCode: string | null,
+  reasons?: ReadonlyMap<string, string> | null,
 ): OdometerVerdict {
   const verdict = verdictRaw?.trim() || null;
   const year = yearRaw ? Number(yearRaw) : null;
-  const reason = reasonCode ? (ODOMETER_REASONS[reasonCode.padStart(2, '0')] ?? null) : null;
+  const code = reasonCode ? reasonCode.padStart(2, '0') : null;
+  // The live lexicon wins when it answered; the bundled list is the fallback.
+  const reason = code ? (reasons?.get(code) ?? ODOMETER_REASONS[code] ?? null) : null;
 
   const normalised = verdict?.toLowerCase() ?? '';
   if (normalised.includes('onlogisch')) {

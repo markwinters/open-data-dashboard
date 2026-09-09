@@ -32,7 +32,14 @@ function parseRegistry(source) {
   let match;
   while ((match = entryPattern.exec(source)) !== null) {
     const [, key, id, name, confidence, required, fieldBlock] = match;
-    const fields = [...fieldBlock.matchAll(/'([^']+)'/g)].map((m) => m[1]);
+    // Field lists can carry comment lines (and an apostrophe inside one would
+    // feed a naive all-text scan a bogus "field"), so only whole lines shaped
+    // like string-list entries count as fields.
+    const fields = fieldBlock
+      .split('\n')
+      .map((line) => line.trim().match(/^'([^']+)',?$/))
+      .filter((m) => m !== null)
+      .map((m) => m[1]);
     datasets.push({ key, id, name, confidence, required: required === 'true', fields });
   }
   return datasets;

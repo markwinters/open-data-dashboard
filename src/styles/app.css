@@ -899,6 +899,30 @@ a {
   flex-wrap: wrap;
 }
 
+.passport__photo {
+  margin: 0;
+  max-width: 260px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  background: var(--surface-sunken);
+}
+
+.passport__photo img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+}
+
+.passport__photo figcaption {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 6px 10px;
+  border-top: 1px solid var(--border);
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -943,6 +967,113 @@ a {
   margin-top: 3px;
   font-weight: 550;
   overflow-wrap: anywhere;
+}
+
+.spec__muted {
+  font-weight: 450;
+  color: var(--text-muted);
+}
+
+.charge-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+}
+
+.benchmark {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.benchmark__row {
+  display: grid;
+  grid-template-columns: 1fr 96px minmax(120px, 1fr) 96px 180px;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-sunken);
+}
+
+.benchmark__label {
+  font-size: 13px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.benchmark__value {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.benchmark__src {
+  margin-left: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.benchmark__bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--meter-track);
+  overflow: hidden;
+}
+
+.benchmark__fill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--seq-300), var(--seq-500));
+}
+
+.benchmark__delta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: right;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .benchmark__row {
+    grid-template-columns: 1fr 96px 96px;
+  }
+  .benchmark__bar {
+    display: none;
+  }
+  .benchmark__delta {
+    grid-column: span 3;
+    text-align: left;
+  }
+}
+
+.charge-fact {
+  text-align: center;
+  padding: 14px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-sunken);
+}
+
+.charge-fact__value {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.charge-fact__label {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .timeline {
@@ -1461,8 +1592,13 @@ a {
   border-radius: 9px;
   border: 1px solid var(--bezel);
   background: var(--surface-sunken);
-  /* A recall is a warning, so it carries the severity stripe the lamps use. */
-  border-left: 3px solid var(--serious);
+  /* Only an open action carries the severity stripe. A handled action - the
+     producer reported the repair - is muted history, not a warning. */
+  border-left: 3px solid transparent;
+}
+
+.recall--open {
+  border-left-color: var(--serious);
 }
 
 .recall header {
@@ -1488,12 +1624,33 @@ a {
 }
 
 .recall__status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--serious);
   margin-top: 4px;
+}
+
+.recall__statusdot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--serious);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--serious) 20%, transparent);
+  flex: none;
+}
+
+.recall:not(.recall--open) .recall__status {
+  color: var(--text-muted);
+}
+
+.recall:not(.recall--open) .recall__statusdot {
+  background: var(--text-muted);
+  box-shadow: none;
 }
 
 .recall__risk {

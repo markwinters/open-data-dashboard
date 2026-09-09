@@ -14,11 +14,20 @@ export interface TableSpec {
   rows: (string | number)[][];
 }
 
+/** A non-RDW source, for the same footer slot as a dataset key. */
+export interface ExternalSource {
+  label: string;
+  url: string;
+  license?: string;
+}
+
+type SourceRef = DatasetKey | ExternalSource;
+
 interface ChartCardProps {
   title: string;
   subtitle?: string;
-  /** Which RDW datasets the panel read, shown as provenance. */
-  sources: DatasetKey[];
+  /** Which datasets the panel read — RDW dataset keys and external sources. */
+  sources: SourceRef[];
   legend?: LegendItem[];
   /** Every chart has a table-view twin; omit only for a bare stat tile. */
   table?: TableSpec;
@@ -139,11 +148,18 @@ export function ChartCard({
 
       <footer className="card__source">
         <span>Bron</span>
-        {sources.map((key) => (
-          <a key={key} href={datasetPage(key)} target="_blank" rel="noreferrer noopener">
-            {DATASETS[key].name}
-          </a>
-        ))}
+        {sources.map((source) =>
+          typeof source === 'string' ? (
+            <a key={source} href={datasetPage(source)} target="_blank" rel="noreferrer noopener">
+              {DATASETS[source].name}
+            </a>
+          ) : (
+            <a key={source.url} href={source.url} target="_blank" rel="noreferrer noopener">
+              {source.label}
+              {source.license ? ` (${source.license})` : ''}
+            </a>
+          ),
+        )}
       </footer>
     </section>
   );

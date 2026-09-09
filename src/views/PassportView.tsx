@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { SourceMode } from '../lib/dataSource';
 import { useAsync } from '../lib/useAsync';
-import { loadPassport, samplePlates } from '../data/queries';
+import { loadPassport, isOpenRecall, samplePlates } from '../data/queries';
 import { ChartCard } from '../charts/ChartCard';
 import { BarChart } from '../charts/BarChart';
 import { Telltale, TelltalePanel } from '../charts/Instruments';
 import { euro, num, num1, plate as formatPlate, shortDate, titleCase, toNumber } from '../lib/format';
 import { readOdometerVerdict } from '../data/odometerVerdict';
 import { powertrainColour } from '../lib/palette';
+import { fetchKooijmans, kooijmansPhotoUrl, EXTERNAL_SOURCES, type KooijmansVehicle } from '../lib/externalApi';
 import type { Row } from '../mock/soqlEngine';
 
 const value = (row: Row | undefined, field: string): string | null => {
@@ -49,6 +50,15 @@ export function PassportView({ mode }: { mode: SourceMode }) {
   const data = passport.data;
   const vehicle = data?.vehicle;
 
+  /* Kooijmans: vehicle photos and brand logos from an external API. */
+  const [kooijmans, setKooijmans] = useState<KooijmansVehicle | null>(null);
+  useEffect(() => {
+    if (!plateQuery) { setKooijmans(null); return; }
+    const controller = new AbortController();
+    fetchKooijmans(plateQuery, controller.signal).then(setKooijmans);
+    return () => controller.abort();
+  }, [plateQuery]);
+
   /* Defect codes over time - the inspection history as a shape, not a list. */
   const defectsByYear = useMemo(() => {
     if (!data) return [];
@@ -81,16 +91,31 @@ export function PassportView({ mode }: { mode: SourceMode }) {
     return { lit: false, level: 'good' as const, detail: `Geldig tot ${shortDate(raw)}` };
   }, [vehicle]);
 
-  /* Three register columns read as one verdict on the odometer history. */
+  /* Three register columns read as one verdict on the odometer history, with
+     RDW's explanation table (`jqs4-4kvw`) resolving the reason code. */
   const odometer = useMemo(
     () =>
       readOdometerVerdict(
         vehicle ? value(vehicle, 'tellerstandoordeel') : null,
         vehicle ? value(vehicle, 'jaar_laatste_registratie_tellerstand') : null,
         vehicle ? value(vehicle, 'code_toelichting_tellerstandoordeel') : null,
+        data?.odometerReasons ?? null,
       ),
-    [vehicle],
+    [vehicle, data?.odometerReasons],
   );
+
+  /* A recall lamp: the register's own indicator is the primary source, and an
+     open row in the detail table as a guard - a plate whose recallStatus still
+     lists an open action must be lit even if the register flag has drifted. */
+  const recallIndicator = useMemo(() => {
+    const openInDetail = (data?.recalls ?? []).some((recall) => isOpenRecall(recall));
+    const flag = value(vehicle, 'openstaande_terugroepactie_indicator') === 'Ja';
+    if (openInDetail || flag) {
+      const openCount = (data?.recalls ?? []).filter((r) => isOpenRecall(r)).length;
+      return { lit: true, count: openCount || null };
+    }
+    return { lit: false, count: null };
+  }, [data?.recalls, vehicle]);
 
   const co2 = useMemo(() => {
     const values = (data?.fuels ?? [])
@@ -109,12 +134,13 @@ export function PassportView({ mode }: { mode: SourceMode }) {
       <section className="section" style={{ marginTop: 4 }}>
         <div className="section__head">
           <p className="eyebrow">Voertuigpaspoort</p>
-          <h2 className="section__title">Eén kenteken, zes datasets</h2>
+          <h2 className="section__title">Eén kenteken, veertien RDW-datasets</h2>
           <p className="section__lede">
-            Het register kent het voertuig, een tweede dataset de uitstoot, een derde de
-            carrosserie, een vierde de assen, een vijfde elk gebrek dat een keurmeester ooit
-            noteerde — en een zesde vertaalt die gebrekcodes naar leesbare zinnen. Losse datasets
-            zeggen weinig; samen vormen ze een paspoort.
+            Het register kent het voertuig, een tweede dataset de uitstoot, een derde de carrosserie,
+            een vierde de assen, een vijfde de voertuigklasse en de EU-subcategorie, een zesde elke
+            APK-gebrek die een keurmeester ooit noteerde, een zevende de actieve terugroepacties — en
+            een lexicon vertaalt de codes naar leesbare zinnen. Losse datasets zeggen weinig; samen
+            vormen ze een paspoort.
           </p>
         </div>
 
@@ -192,6 +218,32 @@ export function PassportView({ mode }: { mode: SourceMode }) {
                 {shortDate(value(vehicle, 'datum_eerste_toelating_dt'))}
               </p>
             </div>
+            {kooijmans?.PhotoFront ? (
+              <figure className="passport__photo">
+                <img
+                  src={kooijmansPhotoUrl(kooijmans.PathPhoto ?? '', kooijmans.PhotoFront)}
+                  alt={`${titleCase(kooijmans.Make)} ${kooijmans.Model} — foto voorzijde`}
+                  loading="lazy"
+                  onError={(event) => {
+                    event.currentTarget.style.display = 'none';
+                  }}
+                />
+                {kooijmans.Make ? (
+                  <figcaption>
+                    {kooijmans.Make} {kooijmans.Model}
+                    {kooijmans.RdwEnergyLabel ? ` · energielabel ${kooijmans.RdwEnergyLabel}` : ''} ·{' '}
+                    <a
+                      href={EXTERNAL_SOURCES.kooijmans.url}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="spec__muted"
+                    >
+                      foto via Kooijmans
+                    </a>
+                  </figcaption>
+                ) : null}
+              </figure>
+            ) : null}
             <div className="passport__badges">
               <span className="badge">
                 <span
@@ -232,14 +284,14 @@ export function PassportView({ mode }: { mode: SourceMode }) {
               <Telltale
                 kind="recall"
                 label="Terugroepactie"
-                lit={value(vehicle, 'openstaande_terugroepactie_indicator') === 'Ja'}
+                lit={recallIndicator.lit}
                 level="serious"
                 detail={
-                  data.recalls.length > 0
-                    ? `${data.recalls.length} ${data.recalls.length === 1 ? 'actie' : 'acties'} op dit kenteken`
-                    : value(vehicle, 'openstaande_terugroepactie_indicator') === 'Ja'
-                      ? 'De fabrikant heeft een actie uitstaan'
-                      : 'Geen actie van de fabrikant open'
+                  recallIndicator.lit
+                    ? recallIndicator.count
+                      ? `${recallIndicator.count} openstaande ${recallIndicator.count === 1 ? 'actie' : 'acties'} op dit kenteken`
+                      : 'De fabrikant heeft een actie uitstaan'
+                    : 'Geen openstaande actie van de fabrikant'
                 }
               />
               <Telltale
@@ -284,7 +336,10 @@ export function PassportView({ mode }: { mode: SourceMode }) {
           <ChartCard
             title="Uit het kentekenregister"
             subtitle="Gekentekende voertuigen — de spil waaraan de rest hangt"
-            sources={['vehicles']}
+            sources={[
+              'vehicles',
+              ...(kooijmans?.CurrentValue ? [EXTERNAL_SOURCES.kooijmans] : []),
+            ]}
             span="half"
           >
             <div className="spec-list">
@@ -307,6 +362,11 @@ export function PassportView({ mode }: { mode: SourceMode }) {
               </Spec>
               <Spec label="Zitplaatsen">{value(vehicle, 'aantal_zitplaatsen')}</Spec>
               <Spec label="Catalogusprijs">{euro(toNumber(vehicle.catalogusprijs))}</Spec>
+              {kooijmans?.CurrentValue ? (
+                <Spec label="Huidige waarde">
+                  {euro(kooijmans.CurrentValue)} <span className="spec__muted">· via Kooijmans</span>
+                </Spec>
+              ) : null}
               <Spec label="Lengte × breedte">
                 {value(vehicle, 'lengte') && value(vehicle, 'breedte')
                   ? `${num(toNumber(vehicle.lengte))} × ${num(toNumber(vehicle.breedte))} cm`
@@ -371,10 +431,10 @@ export function PassportView({ mode }: { mode: SourceMode }) {
 
           <ChartCard
             title="Terugroepacties"
-            subtitle="Van kenteken naar referentiecode naar de actie zelf"
+            subtitle="Van kenteken naar referentiecode, met de status van elke actie"
             sources={['recallStatus', 'recallAction', 'recallRisk']}
             span="half"
-            note="Het register zegt alleen dát er een actie openstaat. Pas de koppeling met het terugroepregister zegt welke, wanneer die is gepubliceerd en wat er mis kan gaan."
+            note="Alleen een actie met status 'Openstaande terugroepactie' telt voor het lampje. 'Herstel gemeld' betekent dat de producent het herstel heeft gemeld — dan brandt het lampje terecht niet."
           >
             {data.recalls.length === 0 ? (
               <p className="chart-empty">
@@ -382,18 +442,27 @@ export function PassportView({ mode }: { mode: SourceMode }) {
               </p>
             ) : (
               <div className="recall-list">
-                {data.recalls.map((recall) => (
-                  <article className="recall" key={recall.reference}>
-                    <header>
-                      <span className="recall__code">{recall.reference}</span>
-                      <span className="recall__date">{shortDate(recall.published)}</span>
-                    </header>
-                    {recall.status ? <p className="recall__status">{recall.status}</p> : null}
-                    <p className="recall__risk">
-                      {recall.risk ?? 'Geen risico-omschrijving in het register.'}
-                    </p>
-                  </article>
-                ))}
+                {data.recalls.map((recall) => {
+                  const open = isOpenRecall(recall);
+                  return (
+                    <article
+                      className={`recall${open ? ' recall--open' : ''}`}
+                      key={recall.reference}
+                    >
+                      <header>
+                        <span className="recall__code">{recall.reference}</span>
+                        <span className="recall__date">{shortDate(recall.published)}</span>
+                      </header>
+                      <p className="recall__status">
+                        <span className="recall__statusdot" aria-hidden="true" />
+                        {recall.status ?? (open ? 'Openstaande terugroepactie' : 'Status onbekend')}
+                      </p>
+                      <p className="recall__risk">
+                        {recall.risk ?? 'Geen risico-omschrijving in het register.'}
+                      </p>
+                    </article>
+                  );
+                })}
               </div>
             )}
           </ChartCard>
@@ -427,20 +496,57 @@ export function PassportView({ mode }: { mode: SourceMode }) {
               <Spec label="Aantal assen">
                 {value(data.axles[0], 'aantal_assen') ?? String(data.axles.length || '–')}
               </Spec>
-              <Spec label="Aangedreven assen">
-                {data.axles.filter((axle) => value(axle, 'aangedreven_as') === 'J').length || '–'}
-              </Spec>
-              <Spec label="Spoorbreedte">
-                {toNumber(data.axles[0]?.spoorbreedte) != null
-                  ? `${num(toNumber(data.axles[0]?.spoorbreedte))} cm`
-                  : null}
+              <Spec label="Plaatscode assen">
+                {data.axles
+                  .map((axle) => `as ${value(axle, 'as_nummer')}: ${value(axle, 'plaatscode_as')}`)
+                  .join(' · ') || '–'}
               </Spec>
               <Spec label="Voertuigklasse">
-                {value(data.vehicleClass[0], 'code_toevoeging_uitvoering') ??
+                {value(data.vehicleClass[0], 'voertuigklasse_omschrijving') ??
+                  value(data.vehicleClass[0], 'voertuigklasse') ??
                   value(vehicle, 'europese_voertuigcategorie')}
               </Spec>
               <Spec label="Wielbasis">
                 {toNumber(vehicle.wielbasis) != null ? `${num(toNumber(vehicle.wielbasis))} cm` : null}
+              </Spec>
+            </div>
+          </ChartCard>
+
+          <ChartCard
+            title="Subcategorie en bijzonderheden"
+            subtitle="De EU-subcategorie, wettelijke bijzonderheden en rupsbandsets"
+            sources={['subcategory', 'specialFeatures', 'trackSets']}
+            span="half"
+          >
+            <div className="spec-list">
+              <Spec label="Subcategorie">
+                {value(
+                  data.subcategory[0],
+                  'subcategorie_voertuig_europees_omschrijving',
+                ) ??
+                  value(data.subcategory[0], 'subcategorie_voertuig_europees') ??
+                  'Verenigbaar met de voertuigklasse'}
+              </Spec>
+              <Spec label="Bijzonderheden">
+                {data.specialFeatures
+                  .map(
+                    (feature) =>
+                      `${value(feature, 'bijzonderheid_code') ?? '?'}${
+                        value(feature, 'bijzonderheid_code_1') ? ` (${value(feature, 'bijzonderheid_code_1')})` : ''
+                      }`,
+                  )
+                  .join(' · ') || 'Geen bijzonderheden geregistreerd'}
+              </Spec>
+              <Spec label="Rupsbandsets">
+                {data.trackSets.length === 0
+                  ? 'Geen rupsbandset geregistreerd'
+                  : data.trackSets
+                      .map((track) => {
+                        const driven = value(track, 'aangedreven_rupsband_indicator') === 'J' ? 'aangedreven' : 'ongeremd';
+                        const braked = value(track, 'geremde_rupsband_indicator') === 'J' ? 'geremd' : '';
+                        return `set ${value(track, 'rupsband_set_volgnr')}: ${[braked, driven].filter(Boolean).join(', ')}`;
+                      })
+                      .join(' · ')}
               </Spec>
             </div>
           </ChartCard>

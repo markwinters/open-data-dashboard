@@ -412,11 +412,27 @@ export interface PassportDefect {
 export interface PassportRecall {
   /** The manufacturer's reference code, as RDW publishes it. */
   reference: string;
-  /** This vehicle's status in that action. */
+  /** The action's status on this vehicle's plate, as RDW worded it. */
   status: string | null;
+  /** The status code behind it - 'O' is "openstaand", 'P' is "herstel gemeld". */
+  statusCode: string | null;
   published: string | null;
   /** What can go wrong, when the risk dataset describes it. */
   risk: string | null;
+}
+
+/**
+ * Whether a recalled action is genuinely open on this plate.
+ *
+ * The status table distinguishes an open action (`code_status` 'O',
+ * "Openstaande terugroepactie") from one whose producer already reported a
+ * repair ('P', "Producent heeft herstel gemeld"). Only the open action counts
+ * as an open recall - everything else is history.
+ */
+export function isOpenRecall(recall: Pick<PassportRecall, 'status' | 'statusCode'>): boolean {
+  const code = recall.statusCode?.trim().toUpperCase() ?? '';
+  const wording = recall.status ?? '';
+  return code === 'O' || /openstaande/.test(wording);
 }
 
 export interface Passport {
@@ -425,9 +441,14 @@ export interface Passport {
   body: Row[];
   axles: Row[];
   vehicleClass: Row[];
+  subcategory: Row[];
+  specialFeatures: Row[];
+  trackSets: Row[];
   defects: PassportDefect[];
   recalls: PassportRecall[];
   powertrain: Powertrain;
+  /** Statutory odometer-verdict reason, code → sentence. */
+  odometerReasons: Map<string, string>;
   missing: string[];
 }
 
@@ -509,13 +530,19 @@ async function loadRecalls(ctx: Ctx, kenteken: string, missing: string[]): Promi
       return {
         reference,
         status: str(row, 'status'),
+        statusCode: str(row, 'code_status'),
         published: publishedBy.get(reference) ?? null,
         risk: riskBy.get(reference) ?? null,
       };
     })
     .filter((recall) => recall.reference)
-    // Newest first; a recall without a date sorts last.
-    .sort((a, b) => (b.published ?? '').localeCompare(a.published ?? ''));
+    // Open actions first, then newest-first by publication date.
+    .sort((a, b) => {
+      const openA = isOpenRecall(a) ? 0 : 1;
+      const openB = isOpenRecall(b) ? 0 : 1;
+      if (openA !== openB) return openA - openB;
+      return (b.published ?? '').localeCompare(a.published ?? '');
+    });
 }
 
 /**
@@ -553,11 +580,14 @@ export async function loadPassport(ctx: Ctx, rawPlate: string): Promise<Passport
   };
 
   const plateFilter = { where: eq('kenteken', kenteken), limit: 60 };
-  const [fuels, body, axles, vehicleClass, defectRows, lexicon, recalls] = await Promise.all([
+  const [fuels, body, axles, vehicleClass, subcategory, specialFeatures, trackSets, defectRows, lexicon, recalls, odometerReasons] = await Promise.all([
     side('brandstof', query(ctx.mode, 'fuel', plateFilter, { signal: ctx.signal })),
     side('carrosserie', query(ctx.mode, 'body', plateFilter, { signal: ctx.signal })),
     side('assen', query(ctx.mode, 'axles', plateFilter, { signal: ctx.signal })),
     side('voertuigklasse', query(ctx.mode, 'vehicleClass', plateFilter, { signal: ctx.signal })),
+    side('subcategorie', query(ctx.mode, 'subcategory', plateFilter, { signal: ctx.signal })),
+    side('bijzonderheden', query(ctx.mode, 'specialFeatures', plateFilter, { signal: ctx.signal })),
+    side('rupsbandsets', query(ctx.mode, 'trackSets', plateFilter, { signal: ctx.signal })),
     side(
       'geconstateerde gebreken',
       query(ctx.mode, 'defectsFound', { where: eq('kenteken', kenteken), limit: 300 }, { signal: ctx.signal }),
@@ -567,6 +597,7 @@ export async function loadPassport(ctx: Ctx, rawPlate: string): Promise<Passport
       return new Map<string, string>();
     }),
     loadRecalls(ctx, kenteken, missing),
+    odometerReasonsLexicon(ctx),
   ]);
 
   const defects: PassportDefect[] = defectRows
@@ -587,13 +618,38 @@ export async function loadPassport(ctx: Ctx, rawPlate: string): Promise<Passport
     body,
     axles,
     vehicleClass,
+    subcategory,
+    specialFeatures,
+    trackSets,
     defects,
     recalls,
     powertrain: classifyPowertrain(
       fuels.map((f) => str(f, 'brandstof_omschrijving') ?? '').filter(Boolean),
     ),
+    odometerReasons,
     missing,
   };
+}
+
+/**
+ * The statutory lexicon behind the register's odometer-verdict reason codes,
+ * as RDW publishes it in `jqs4-4kvw`. Small, and a per-vehicle passport already
+ * fetches the table around it, so loading the whole list is one request.
+ */
+async function odometerReasonsLexicon(ctx: Ctx): Promise<Map<string, string>> {
+  try {
+    const rows = await query(ctx.mode, 'odometerExplanations', { limit: 100 }, { signal: ctx.signal });
+    const map = new Map<string, string>();
+    for (const row of rows) {
+      const code = str(row, 'code_toelichting_tellerstandoordeel');
+      const text = str(row, 'toelichting_tellerstandoordeel');
+      if (code && text) map.set(code.padStart(2, '0'), text);
+    }
+    return map;
+  } catch (error) {
+    if (isAbortError(error)) throw error;
+    return new Map();
+  }
 }
 
 /** A handful of plates that exist, so the passport view is never a dead end. */

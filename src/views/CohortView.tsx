@@ -11,6 +11,7 @@ import { LineChart } from '../charts/LineChart';
 import { StatTile } from '../charts/Figures';
 import { ALL_PAIRS_SERIES_CAP, POWERTRAIN_ORDER, powertrainColour, seriesVar } from '../lib/palette';
 import { compact, euro, num, num1, percent, tick, titleCase } from '../lib/format';
+import { fetchChargingPoints, EXTERNAL_SOURCES } from '../lib/externalApi';
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = Array.from({ length: 36 }, (_, i) => CURRENT_YEAR - i);
@@ -65,6 +66,11 @@ export function CohortView({ mode }: { mode: SourceMode }) {
     (signal) => loadCohort({ mode, signal }, filters),
     [mode, filters.marque, filters.yearFrom, filters.yearTo, filters.vehicleType, filters.sampleSize],
   );
+
+  /* DOT-NL charging points: national context for the sample's electrification.
+     Optional and cached - a missing answer costs one tile, never the view. */
+  const charging = useAsync((signal) => fetchChargingPoints(signal).then((p) => p.length), []);
+  const chargingCount = charging.data ?? null;
 
   const vehicles = useMemo(() => cohort.data?.vehicles ?? [], [cohort.data]);
   // Identity has to be stable: a fresh Map each render would defeat the memo
@@ -332,6 +338,12 @@ export function CohortView({ mode }: { mode: SourceMode }) {
             hint={`${num(summary.withDefects)} van ${num(summary.size)} voertuigen`}
             loading={cohort.loading}
           />
+          <StatTile
+            label="Openbare laadpalen in NL"
+            value={chargingCount == null ? '—' : compact(chargingCount)}
+            hint="DOT-NL, het nationale laadinfrastructuur-register — context voor het EV-aandeel"
+            loading={charging.loading}
+          />
         </div>
       </section>
 
@@ -369,6 +381,48 @@ export function CohortView({ mode }: { mode: SourceMode }) {
               normalise
               height={300}
             />
+          </ChartCard>
+
+          <ChartCard
+            title="Laadcontext"
+            subtitle="Hoe de elektrische voertuigen in de steekproef zich verhouden tot de landelijke laadinfrastructuur"
+            sources={['fuel', EXTERNAL_SOURCES.dotNl]}
+            span="full"
+            loading={charging.loading}
+            error={charging.error}
+            note="De laadpalen komen uit DOT-NL, de open datapaviljoenen van het Nationaal Dataportaal Wegverkeer (CC-BY). De koppeling is bewust grof: gemiddeld per stad is een laadpaal, niet per straat — een context-cijfer, geen routeplanner."
+            table={{
+              columns: ['Kengetal', 'Waarde'],
+              rows: [
+                ['Openbare laadpunten in Nederland', chargingCount ?? 0],
+                ['Elektrisch of hybride in de steekproef', summary.electrifiedShare == null ? 0 : Math.min(1, summary.electrifiedShare)],
+              ],
+            }}
+          >
+            {chargingCount == null ? (
+              <p className="chart-empty">De laadinfrastructuur-dataset antwoordde niet. De rest van de analyse is gewoon berekend.</p>
+            ) : (
+              <div className="charge-facts">
+                <div className="charge-fact">
+                  <p className="charge-fact__value">{compact(chargingCount)}</p>
+                  <p className="charge-fact__label">openbare laadpunten in Nederland</p>
+                </div>
+                <div className="charge-fact">
+                  <p className="charge-fact__value">{percent(summary.electrifiedShare)}</p>
+                  <p className="charge-fact__label">
+                    elektrisch of plug-in hybride in deze steekproef
+                  </p>
+                </div>
+                <div className="charge-fact">
+                  <p className="charge-fact__value">
+                    {summary.electrifiedShare != null && summary.electrifiedShare > 0 && chargingCount
+                      ? num1(chargingCount / (summary.electrifiedShare * summary.size))
+                      : '–'}
+                  </p>
+                  <p className="charge-fact__label">laadpunten per elektrisch voertuig</p>
+                </div>
+              </div>
+            )}
           </ChartCard>
 
           <ChartCard

@@ -96,14 +96,40 @@ export interface AxleRow {
   kenteken: string;
   as_nummer: string;
   aantal_assen: string;
-  aangedreven_as: string;
-  spoorbreedte: string;
+  plaatscode_as: string;
 }
 
 export interface VehicleClassRow {
   kenteken: string;
-  volgnummer: string;
-  code_toevoeging_uitvoering: string;
+  carrosserie_volgnummer: string;
+  voertuigklasse: string;
+  voertuigklasse_omschrijving: string;
+}
+
+export interface SubcategoryRow {
+  kenteken: string;
+  subcategorie_voertuig_volgnummer: string;
+  subcategorie_voertuig_europees: string;
+  subcategorie_voertuig_europees_omschrijving: string;
+}
+
+export interface SpecialFeatureRow {
+  kenteken: string;
+  bijzonderheid_volgnummer: string;
+  bijzonderheid_code: string;
+  bijzonderheid_code_1: string;
+}
+
+export interface TrackSetRow {
+  kenteken: string;
+  rupsband_set_volgnr: string;
+  geremde_rupsband_indicator: string;
+  aangedreven_rupsband_indicator: string;
+}
+
+export interface OdometerReasonRow {
+  code_toelichting_tellerstandoordeel: string;
+  toelichting_tellerstandoordeel: string;
 }
 
 export interface DemoData {
@@ -114,6 +140,10 @@ export interface DemoData {
   defectCodes: DefectCodeRow[];
   axles: AxleRow[];
   vehicleClass: VehicleClassRow[];
+  subcategory: SubcategoryRow[];
+  specialFeatures: SpecialFeatureRow[];
+  trackSets: TrackSetRow[];
+  odometerExplanations: OdometerReasonRow[];
   recallStatus: RecallStatusRow[];
   recallAction: RecallActionRow[];
   recallRisk: RecallRiskRow[];
@@ -295,6 +325,9 @@ export function generateDemoData(options: GenerateOptions = {}): DemoData {
   const defectsFound: DefectFoundRow[] = [];
   const axles: AxleRow[] = [];
   const vehicleClass: VehicleClassRow[] = [];
+  const subcategory: SubcategoryRow[] = [];
+  const specialFeatures: SpecialFeatureRow[] = [];
+  const trackSets: TrackSetRow[] = [];
   const recallStatus: RecallStatusRow[] = [];
   const seen = new Set<string>();
 
@@ -483,11 +516,43 @@ export function generateDemoData(options: GenerateOptions = {}): DemoData {
     });
 
     axles.push(
-      { kenteken, as_nummer: '1', aantal_assen: '2', aangedreven_as: 'J', spoorbreedte: String(Math.round(massLedig / 8.7)) },
-      { kenteken, as_nummer: '2', aantal_assen: '2', aangedreven_as: powertrain === 'ev' ? 'J' : 'N', spoorbreedte: String(Math.round(massLedig / 8.8)) },
+      { kenteken, as_nummer: '1', aantal_assen: '2', plaatscode_as: 'V' },
+      { kenteken, as_nummer: '2', aantal_assen: '2', plaatscode_as: 'A' },
     );
 
-    vehicleClass.push({ kenteken, volgnummer: '1', code_toevoeging_uitvoering: isCommercial ? 'N1' : 'M1' });
+    vehicleClass.push({
+      kenteken,
+      carrosserie_volgnummer: '1',
+      voertuigklasse: isCommercial ? '13' : '11',
+      voertuigklasse_omschrijving: isCommercial
+        ? 'Zakelijk/N1'
+        : 'Personenauto klasse M1',
+    });
+
+    subcategory.push({
+      kenteken,
+      subcategorie_voertuig_volgnummer: '1',
+      subcategorie_voertuig_europees: isCommercial ? 'C1' : 'B1',
+      subcategorie_voertuig_europees_omschrijving: isCommercial
+        ? 'Bestelwagen'
+        : 'Personenauto',
+    });
+
+    if (rand() < 0.03) {
+      specialFeatures.push(
+        { kenteken, bijzonderheid_volgnummer: '1', bijzonderheid_code: 'B', bijzonderheid_code_1: 'DRL' },
+        ...(isCommercial ? [{ kenteken, bijzonderheid_volgnummer: '2', bijzonderheid_code: 'F', bijzonderheid_code_1: '' }] : []),
+      );
+    }
+
+    if (rand() < 0.002) {
+      trackSets.push({
+        kenteken,
+        rupsband_set_volgnr: '1',
+        geremde_rupsband_indicator: 'J',
+        aangedreven_rupsband_indicator: 'N',
+      });
+    }
 
     // --- inspection defects: rate climbs with age, and older cars fail on wear items
     if (age >= 4) {
@@ -523,6 +588,10 @@ export function generateDemoData(options: GenerateOptions = {}): DemoData {
     defectCodes: DEFECT_LEXICON,
     axles,
     vehicleClass,
+    subcategory,
+    specialFeatures,
+    trackSets,
+    odometerExplanations: ODOMETER_REASON_LEXICON,
     recallStatus,
     recallAction: RECALLS.map((r) => ({
       referentiecode_rdw: r.code,
@@ -534,3 +603,26 @@ export function generateDemoData(options: GenerateOptions = {}): DemoData {
     })),
   };
 }
+
+const ODOMETER_REASON_LEXICON: OdometerReasonRow[] = [
+  {
+    code_toelichting_tellerstandoordeel: '00',
+    toelichting_tellerstandoordeel:
+      'Elke geregistreerde tellerstand is hoger dan de daarvoor geregistreerde stand. De reeks is logisch verklaarbaar.',
+  },
+  {
+    code_toelichting_tellerstandoordeel: '01',
+    toelichting_tellerstandoordeel:
+      'De teller loopt niet door tot 999.999 of is teruggesprongen naar nul na het maximum. De RDW geeft geen oordeel.',
+  },
+  {
+    code_toelichting_tellerstandoordeel: '02',
+    toelichting_tellerstandoordeel:
+      'De teller is vervangen of gerepareerd. De RDW geeft geen oordeel over de reeks.',
+  },
+  {
+    code_toelichting_tellerstandoordeel: '04',
+    toelichting_tellerstandoordeel:
+      'Er is een tellerstand geregistreerd die lager lag dan de vorige. De RDW baseert dit oordeel op metingen vanaf 1 januari 2014.',
+  },
+];
