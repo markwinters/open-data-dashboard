@@ -14,7 +14,7 @@
  *    client-side. That join is the point of those views.
  */
 
-import { query, scalar, type SourceMode } from '../lib/dataSource';
+import { isAbortError, query, scalar, type SourceMode } from '../lib/dataSource';
 import { hydrate } from '../lib/join';
 import { and, between, eq, inList, notNull } from '../lib/soql';
 import { classifyPowertrain, type Powertrain } from '../lib/palette';
@@ -268,10 +268,14 @@ export async function loadCohort(ctx: Ctx, filters: CohortFilters): Promise<Coho
   const plates = baseRows.map((row) => String(row.kenteken)).filter(Boolean);
   const degraded: string[] = [];
 
+  // A detail table that fails should cost its panel, not the whole view - but a
+  // cancelled request is not a failure, and reporting it as a degraded dataset
+  // would draw an empty panel over a load that is simply being replaced.
   const optional = async <T>(name: string, task: Promise<T>, fallback: T): Promise<T> => {
     try {
       return await task;
-    } catch {
+    } catch (error) {
+      if (isAbortError(error)) throw error;
       degraded.push(name);
       return fallback;
     }
@@ -418,7 +422,10 @@ export async function loadPassport(ctx: Ctx, rawPlate: string): Promise<Passport
   const side = async (name: string, task: Promise<Row[]>): Promise<Row[]> => {
     try {
       return await task;
-    } catch {
+    } catch (error) {
+      // As in `loadCohort`: a cancelled request has not told us the dataset is
+      // missing, so it must not be reported as one.
+      if (isAbortError(error)) throw error;
       missing.push(name);
       return [];
     }
@@ -434,7 +441,10 @@ export async function loadPassport(ctx: Ctx, rawPlate: string): Promise<Passport
       'geconstateerde gebreken',
       query(ctx.mode, 'defectsFound', { where: eq('kenteken', kenteken), limit: 300 }, { signal: ctx.signal }),
     ),
-    defectLexicon(ctx).catch(() => new Map<string, string>()),
+    defectLexicon(ctx).catch((error: unknown) => {
+      if (isAbortError(error)) throw error;
+      return new Map<string, string>();
+    }),
   ]);
 
   const defects: PassportDefect[] = defectRows
