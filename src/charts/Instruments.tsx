@@ -245,7 +245,7 @@ export function Odometer({ label, value, caption, format }: OdometerProps) {
 
 /* -------------------------------------------------------------- telltales -- */
 
-export type TelltaleKind = 'recall' | 'insurance' | 'export' | 'inspection' | 'taxi';
+export type TelltaleKind = 'recall' | 'insurance' | 'export' | 'inspection' | 'taxi' | 'odometer';
 
 export interface TelltaleProps {
   kind: TelltaleKind;
@@ -303,6 +303,15 @@ function TelltaleIcon({ kind }: { kind: TelltaleKind }) {
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
           <path {...common} d="M4 16v-3l1.7-4.2A2 2 0 0 1 7.6 7.5h8.8a2 2 0 0 1 1.9 1.3L20 13v3" />
           <path {...common} d="M3.5 16h17M6.5 16v1.8M17.5 16v1.8M10 5h4" />
+        </svg>
+      );
+    case 'odometer':
+      // A dial with a needle: the odometer-integrity lamp.
+      return (
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+          <path {...common} d="M4.6 17.5a8.5 8.5 0 1 1 14.8 0" />
+          <path {...common} d="M12 13.5 15.6 9.4" />
+          <circle cx="12" cy="14" r="1.2" fill="currentColor" stroke="none" />
         </svg>
       );
   }

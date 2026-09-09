@@ -8,6 +8,8 @@ import {
   powertrainColour,
   sequential,
 } from '../lib/palette';
+import { readOdometerVerdict } from '../data/odometerVerdict';
+import { describeRisk } from '../data/queries';
 
 describe('licence plates', () => {
   it('groups a plate by the shape of its letters and digits', () => {
@@ -96,5 +98,64 @@ describe('sequential ramp', () => {
     expect(sequential(1)).toBe('var(--seq-700)');
     expect(sequential(-5)).toBe('var(--seq-100)');
     expect(sequential(Number.NaN)).toBe('var(--seq-100)');
+  });
+});
+
+describe('odometer verdict', () => {
+  it('lights red when the series does not add up', () => {
+    const v = readOdometerVerdict('Onlogisch', '2024', '04');
+    expect(v.lit).toBe(true);
+    expect(v.level).toBe('critical');
+    expect(v.year).toBe(2024);
+    expect(v.reason).toMatch(/lager lag dan de vorige/);
+  });
+
+  it('stays dark on a logical series', () => {
+    const v = readOdometerVerdict('Logisch', '2023', '00');
+    expect(v.lit).toBe(false);
+    expect(v.level).toBe('good');
+  });
+
+  it('treats a missing verdict as worth showing, not worth alarming about', () => {
+    // Plenty of vehicles simply have too few readings to judge.
+    const v = readOdometerVerdict('', null, null);
+    expect(v.lit).toBe(false);
+    expect(v.level).toBe('warning');
+    expect(v.verdict).toBeNull();
+    expect(v.year).toBeNull();
+  });
+
+  it('accepts an unpadded reason code', () => {
+    expect(readOdometerVerdict('Geen oordeel', '2020', '2').reason).toMatch(/vervangen of gerepareerd/);
+  });
+
+  it('returns no reason for a code outside the statutory list', () => {
+    expect(readOdometerVerdict('Geen oordeel', '2020', '99').reason).toBeNull();
+  });
+});
+
+describe('recall risk column', () => {
+  it('picks the prose column, whatever it is named', () => {
+    // The risk dataset's column name is unconfirmed, so the reader goes by shape.
+    expect(
+      describeRisk({
+        referentiecode_rdw: 'MGP128815',
+        code: 'X41',
+        omschrijving_risico: 'De brandstofleiding kan gaan lekken en brand veroorzaken.',
+      }),
+    ).toMatch(/brandstofleiding/);
+  });
+
+  it('never returns the join key or a bare code', () => {
+    expect(describeRisk({ referentiecode_rdw: 'MGP128815', code: 'X41' })).toBeNull();
+  });
+
+  it('prefers the longest description when several columns qualify', () => {
+    const picked = describeRisk({
+      referentiecode_rdw: 'A',
+      kort: 'Kan gaan lekken',
+      lang: 'De brandstofleiding kan onder druk scheuren en brand veroorzaken.',
+    });
+    expect(picked).toMatch(/onder druk scheuren/);
   });
 });

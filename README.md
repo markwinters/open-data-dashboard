@@ -36,10 +36,23 @@ rows. This is where facts appear that **no single dataset states**:
 - The defect leaderboard needs the inspection dataset for the codes and the statutory
   gebreken list to say what each code means.
 
-**Voertuigpaspoort** — one licence plate resolved across six datasets in parallel:
+**Voertuigpaspoort** — one licence plate resolved across nine datasets in parallel:
 specifications, emissions per fuel row, body, axles, vehicle class, and the full
 inspection history with each defect code translated into its legal description — under
 a row of warning lamps that light for exactly what the register flags.
+
+Two of those joins are worth calling out, because they are the difference between
+a flag and a fact:
+
+- **Recalls.** The register only says *that* something is open. `Terugroep_actie_status`
+  turns the plate into a manufacturer reference code, and that code reaches the action
+  itself and its risk description — so the recall lamp can name the action, its
+  publication date, this vehicle's status in it, and what can actually go wrong.
+- **Odometer.** RDW judges whether a vehicle's sequence of readings holds up. It never
+  publishes the mileage, only the verdict, the year of the last reading, and — when it
+  cannot judge — a statutory code saying why. "Onlogisch" means a reading came in lower
+  than the one before it, which is what tampering looks like from the outside, so it
+  lights red.
 
 ## The cluster
 
@@ -54,6 +67,7 @@ telltales rather than another row of numbers:
 | Clock | The APK has expired (red) or runs out within 60 days (amber) | `vervaldatum_apk_dt` |
 | Arrow out | The vehicle is registered for export | `export_indicator` |
 | Roof sign | Registered for taxi work | `taxi_indicator` |
+| Dial | RDW judged the odometer sequence illogical | `tellerstandoordeel` |
 
 The other two forms follow the same logic. A register only ever counts up, so the
 headline total is an **odometer** — unlike a dial it needs no upper bound to stay
@@ -118,6 +132,7 @@ mark specifications below can actually be met.
 ```
 src/
   data/datasets.ts     the dataset registry: ids, columns, confidence
+  data/odometerVerdict the statutory odometer code list, read into one verdict
   data/queries.ts      every question asked of RDW, aggregate and joined
   lib/soql.ts          typed SoQL builder
   lib/dataSource.ts    live Socrata client + demo backend behind one contract

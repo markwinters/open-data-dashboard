@@ -1445,3 +1445,60 @@ a {
   border-color: var(--bezel);
   background: var(--surface-1);
 }
+
+/* ------------------------------------------------------------- recall list -- */
+
+.recall-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 330px;
+  overflow: auto;
+}
+
+.recall {
+  padding: 11px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--bezel);
+  background: var(--surface-sunken);
+  /* A recall is a warning, so it carries the severity stripe the lamps use. */
+  border-left: 3px solid var(--serious);
+}
+
+.recall header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.recall__code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-primary);
+}
+
+.recall__date {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.recall__status {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--serious);
+  margin-top: 4px;
+}
+
+.recall__risk {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  margin-top: 4px;
+}

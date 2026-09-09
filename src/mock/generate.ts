@@ -39,6 +39,26 @@ export interface VehicleRow {
   datum_eerste_tenaamstelling_in_nederland_dt: string;
   datum_tenaamstelling_dt: string;
   vervaldatum_apk_dt: string;
+  jaar_laatste_registratie_tellerstand: string;
+  tellerstandoordeel: string;
+  code_toelichting_tellerstandoordeel: string;
+}
+
+export interface RecallStatusRow {
+  kenteken: string;
+  referentiecode_rdw: string;
+  code_status: string;
+  status: string;
+}
+
+export interface RecallActionRow {
+  referentiecode_rdw: string;
+  publicatiedatum_rdw: string;
+}
+
+export interface RecallRiskRow {
+  referentiecode_rdw: string;
+  omschrijving_risico: string;
 }
 
 export interface FuelRow {
@@ -94,6 +114,9 @@ export interface DemoData {
   defectCodes: DefectCodeRow[];
   axles: AxleRow[];
   vehicleClass: VehicleClassRow[];
+  recallStatus: RecallStatusRow[];
+  recallAction: RecallActionRow[];
+  recallRisk: RecallRiskRow[];
 }
 
 /** mulberry32 - small, fast, and seeded, so every run renders the same fleet. */
@@ -194,6 +217,29 @@ const DEFECT_LEXICON: DefectCodeRow[] = [
   gebrek_artikel_nummer: art as string,
 }));
 
+/**
+ * A pool of recall actions. RDW keys these on the manufacturer's reference
+ * code, which is what links them to a plate through the status table.
+ */
+const RECALLS: { code: string; published: string; risk: string }[] = [
+  ['MGP070060', '2019-03-28', 'De gordelspanner kan bij een botsing te laat activeren.'],
+  ['MGP113402', '2020-06-11', 'Een softwarefout kan het remsysteem tijdelijk uitschakelen.'],
+  ['MGP128815', '2021-01-19', 'De brandstofleiding kan gaan lekken en brand veroorzaken.'],
+  ['MGP144073', '2021-09-02', 'De achteruitrijcamera kan uitvallen waardoor het zicht ontbreekt.'],
+  ['MGP160991', '2022-04-14', 'Een las in de wielophanging kan onder belasting bezwijken.'],
+  ['MGP178254', '2022-11-30', 'De airbag kan bij ontsteking metaaldeeltjes uitstoten.'],
+  ['MGP195630', '2023-05-22', 'De laadkabel van het hoogvoltsysteem kan oververhitten.'],
+  ['MGP208877', '2023-12-07', 'De stuurkolom kan speling ontwikkelen bij lage temperaturen.'],
+  ['MGP221049', '2024-06-18', 'Een defecte accumodule kan kortsluiting veroorzaken.'],
+  ['MGP237712', '2025-02-11', 'De motorkapvergrendeling kan tijdens het rijden losraken.'],
+].map(([code, published, risk]) => ({ code: code!, published: published!, risk: risk! }));
+
+const RECALL_STATUSES: [string, string][] = [
+  ['R', 'Nog niet uitgevoerd'],
+  ['U', 'Uitgevoerd'],
+  ['G', 'Geen gehoor gegeven aan oproep'],
+];
+
 /** Weighted pick over `[item, weight]` pairs. */
 function weighted<T>(rand: () => number, items: readonly (readonly [T, number])[]): T {
   const total = items.reduce((sum, [, w]) => sum + w, 0);
@@ -249,6 +295,7 @@ export function generateDemoData(options: GenerateOptions = {}): DemoData {
   const defectsFound: DefectFoundRow[] = [];
   const axles: AxleRow[] = [];
   const vehicleClass: VehicleClassRow[] = [];
+  const recallStatus: RecallStatusRow[] = [];
   const seen = new Set<string>();
 
   const brandPicks = BRANDS.map((b) => [b, b.weight] as const);
@@ -320,6 +367,47 @@ export function generateDemoData(options: GenerateOptions = {}): DemoData {
 
     const apkYear = age > 4 ? thisYear + (rand() < 0.55 ? 0 : 1) : year + 4;
 
+    // Odometer verdict. A vehicle needs a few readings before RDW can judge the
+    // sequence at all, so young cars mostly carry no verdict; "Onlogisch" is
+    // rare and gets rarer on cars too new to have been tampered with.
+    const readings = Math.max(0, age - 1);
+    let odometerVerdict = '';
+    let odometerReason = '';
+    if (readings >= 2) {
+      const roll2 = rand();
+      if (roll2 < 0.035 + Math.min(0.05, age * 0.003)) {
+        odometerVerdict = 'Onlogisch';
+        odometerReason = '04';
+      } else if (roll2 < 0.11) {
+        odometerVerdict = 'Geen oordeel';
+        odometerReason = rand() < 0.5 ? '01' : '02';
+      } else {
+        odometerVerdict = 'Logisch';
+        odometerReason = '00';
+      }
+    }
+    const lastReadingYear = readings >= 1 ? thisYear - Math.floor(rand() * 3) : null;
+
+    const recallOpen = rand() < 0.028;
+    if (recallOpen) {
+      // One open action, occasionally two - and the same plate can carry a
+      // closed one alongside it.
+      const howMany = rand() < 0.14 ? 2 : 1;
+      const used = new Set<number>();
+      for (let n = 0; n < howMany; n++) {
+        let index = Math.floor(rand() * RECALLS.length);
+        while (used.has(index)) index = (index + 1) % RECALLS.length;
+        used.add(index);
+        const statusPick = RECALL_STATUSES[n === 0 ? 0 : Math.floor(rand() * RECALL_STATUSES.length)]!;
+        recallStatus.push({
+          kenteken,
+          referentiecode_rdw: RECALLS[index]!.code,
+          code_status: statusPick[0],
+          status: statusPick[1],
+        });
+      }
+    }
+
     vehicles.push({
       kenteken,
       voertuigsoort,
@@ -346,7 +434,7 @@ export function generateDemoData(options: GenerateOptions = {}): DemoData {
       wam_verzekerd: rand() < 0.975 ? 'Ja' : 'Nee',
       export_indicator: rand() < 0.035 ? 'Ja' : 'Nee',
       taxi_indicator: rand() < 0.012 ? 'Ja' : 'Nee',
-      openstaande_terugroepactie_indicator: rand() < 0.028 ? 'Ja' : 'Nee',
+      openstaande_terugroepactie_indicator: recallOpen ? 'Ja' : 'Nee',
       datum_eerste_toelating_dt: iso(year, month, day),
       datum_eerste_tenaamstelling_in_nederland_dt: iso(year, month, day),
       datum_tenaamstelling_dt: iso(
@@ -355,6 +443,9 @@ export function generateDemoData(options: GenerateOptions = {}): DemoData {
         1 + Math.floor(rand() * 28),
       ),
       vervaldatum_apk_dt: iso(apkYear, 1 + Math.floor(rand() * 12), 1 + Math.floor(rand() * 28)),
+      jaar_laatste_registratie_tellerstand: lastReadingYear == null ? '' : String(lastReadingYear),
+      tellerstandoordeel: odometerVerdict,
+      code_toelichting_tellerstandoordeel: odometerReason,
     });
 
     // --- fuel rows: a hybrid is two rows, which is why fuel counts exceed vehicles
@@ -424,5 +515,22 @@ export function generateDemoData(options: GenerateOptions = {}): DemoData {
     }
   }
 
-  return { vehicles, fuel, body, defectsFound, defectCodes: DEFECT_LEXICON, axles, vehicleClass };
+  return {
+    vehicles,
+    fuel,
+    body,
+    defectsFound,
+    defectCodes: DEFECT_LEXICON,
+    axles,
+    vehicleClass,
+    recallStatus,
+    recallAction: RECALLS.map((r) => ({
+      referentiecode_rdw: r.code,
+      publicatiedatum_rdw: `${r.published}T00:00:00.000`,
+    })),
+    recallRisk: RECALLS.map((r) => ({
+      referentiecode_rdw: r.code,
+      omschrijving_risico: r.risk,
+    })),
+  };
 }

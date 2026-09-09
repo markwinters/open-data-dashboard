@@ -8,6 +8,11 @@
  * `confidence` records how sure we are of the identifier/field names without a
  * live call. `npm run verify:datasets` checks every entry against the live API
  * and prints a pass/fail table - run it before trusting a panel.
+ *
+ * The recall family's identifiers and columns were taken from RDW's own
+ * published dataset pages rather than guessed, which is why they carry a higher
+ * confidence than the entries around them - but "read on the portal" is still
+ * not "answered by the API", so the verifier remains the arbiter.
  */
 
 export type Confidence = 'verified' | 'high' | 'medium';
@@ -68,6 +73,12 @@ export const DATASETS = {
       'datum_eerste_tenaamstelling_in_nederland_dt',
       'datum_tenaamstelling_dt',
       'vervaldatum_apk_dt',
+      // The odometer verdict lives in the register itself: the year of the last
+      // reading, RDW's judgement on the sequence, and - when it cannot judge -
+      // a code saying why.
+      'jaar_laatste_registratie_tellerstand',
+      'tellerstandoordeel',
+      'code_toelichting_tellerstandoordeel',
     ],
   },
 
@@ -139,6 +150,48 @@ export const DATASETS = {
     confidence: 'medium',
     required: false,
     fields: ['kenteken', 'as_nummer', 'aantal_assen', 'aangedreven_as', 'spoorbreedte'],
+  },
+
+  /**
+   * The bridge from a plate to a recall. Without this table the register only
+   * says *that* a recall is open, never which one.
+   *
+   * `kenteken` -> `referentiecode_rdw` -> the action and its risk.
+   */
+  recallStatus: {
+    id: 't49b-isb7',
+    name: 'Terugroep actie status',
+    grain: 'One row per recall per vehicle, with that vehicle\'s status in it.',
+    joinKey: 'kenteken',
+    confidence: 'high',
+    required: false,
+    fields: ['kenteken', 'referentiecode_rdw', 'code_status', 'status'],
+  },
+
+  /** The recall itself, keyed on the manufacturer's reference code. */
+  recallAction: {
+    id: 'j9yg-7rg9',
+    name: 'Terugroep actie',
+    grain: 'One row per recall action in the register.',
+    joinKey: 'referentiecode_rdw',
+    confidence: 'high',
+    required: false,
+    fields: ['referentiecode_rdw', 'publicatiedatum_rdw'],
+  },
+
+  /**
+   * What can go wrong, per recall. The column holding the prose is the one
+   * field here that could not be confirmed, so the reader picks it by shape
+   * rather than by name - see `describeRisk` in queries.ts.
+   */
+  recallRisk: {
+    id: '9ihi-jgpf',
+    name: 'Terugroep actie risico',
+    grain: 'One row per described risk per recall action.',
+    joinKey: 'referentiecode_rdw',
+    confidence: 'medium',
+    required: false,
+    fields: ['referentiecode_rdw'],
   },
 
   /** EU vehicle class codes held against a plate. Used on the passport. */
