@@ -25,9 +25,166 @@ function Spec({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
-export function PassportView({ mode }: { mode: SourceMode }) {
+/* ---------------------------------------------------------------- sharing */
+
+/** A passport is only shareable when the link carries the plate, which it does
+    through the `#paspoort/<plaat>` hash. */
+const shareUrl = (plate: string): string =>
+  `${window.location.origin}${window.location.pathname}#paspoort/${plate}`;
+
+interface ShareTarget {
+  label: string;
+  href: (text: string, url: string) => string;
+  icon: React.ReactNode;
+}
+
+const ICON_SIZE = 16;
+
+const SOCIALS: ShareTarget[] = [
+  {
+    label: 'Delen op X',
+    href: (text, url) => `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`,
+    icon: (
+      <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M18.9 2.5h3.3l-7.3 8.4 8.6 11.4h-6.7l-5.3-6.9-6 6.9H1.5l7.8-9L1.1 2.5h6.9l4.8 6.3 5.5-6.3h.6z" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Delen op Facebook',
+    href: (_text, url) => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+    icon: (
+      <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M13.5 21.5v-7h2.4l.4-3h-2.8V9.6c0-.9.3-1.5 1.6-1.5h1.3V5.4c-.2 0-1-.1-1.9-.1-1.9 0-3.2 1.2-3.2 3.3v2.4H8.4v3h2.9v7h2.2z" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Delen op WhatsApp',
+    href: (text, url) => `https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`,
+    icon: (
+      <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.2-1.5-.8-1.7-.9-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1-.8-.3-1.5-.8-2-1.5-.1-.2 0-.4.1-.5l.6-.7c.1-.3 0-.4 0-.6l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.4.1-.6.3l-1.1 1.1c-.3.3-.4.7-.2 1.1 1 2 2.4 3.8 4.7 4.9.7.3 1.3.5 1.7.6.4.1 1.2.4 1.4.2.2-.1.9-.9 1-1.2.1-.3.1-.5-.1-.7z" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Delen op LinkedIn',
+    href: (_text, url) => `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`,
+    icon: (
+      <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M6.9 8.5H3.6V21h3.3V8.5zM5.2 3.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM21 13.9c0-3.2-1.7-4.7-4-4.7-1.8 0-2.7 1-3.2 1.7V8.5h-3.3V21H14v-6.4c0-1.5.7-2.3 1.9-2.3s1.8.9 1.8 2.2V21H21v-7.1z" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Delen per e-mail',
+    href: (text, url) =>
+      `mailto:?subject=${encodeURIComponent('RDW Open Data · voertuigpaspoort')}&body=${encodeURIComponent(`${text}\n${url}`)}`,
+    icon: (
+      <svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zm8 6.6L5.4 7h13.2L12 11.6zM5 17h14V8.9L12 13.4 5 8.9V17z" />
+      </svg>
+    ),
+  },
+];
+
+/** The share toolbar the passport hero carries: native share when the browser
+    has it, direct links to the common channels, and a copyable link. */
+function ShareRow({ plate, title }: { plate: string; title: string }) {
+  const [copied, setCopied] = useState(false);
+  const url = shareUrl(plate);
+  const text = `RDW Open Data: ${title} (${formatPlate(plate)})`;
+  const canShare =
+    typeof navigator !== 'undefined' &&
+    typeof navigator.share === 'function';
+
+  const nativeShare = async () => {
+    try {
+      await navigator.share({ title: text.split(' (')[0] ?? text, text, url });
+    } catch (error) {
+      // A dismissed share sheet is not an error worth showing.
+      if ((error as { name?: string })?.name === 'AbortError') return;
+    }
+  };
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard can be blocked; the link stays visible in the address bar.
+    }
+  };
+
+  return (
+    <div className="passport__share" role="group" aria-label="Dit paspoort delen">
+      {canShare ? (
+        <button
+          type="button"
+          className="share share--native"
+          onClick={() => void nativeShare()}
+          title="Delen via het systeemmenu"
+        >
+          <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 15V3m0 0L8 7m4-4 4 4" />
+            <path d="M4 13v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6" />
+          </svg>
+          Delen
+        </button>
+      ) : null}
+      {SOCIALS.map((social) => (
+        <a
+          key={social.label}
+          className="icon-button"
+          href={social.href(text, url)}
+          target="_blank"
+          rel="noreferrer noopener"
+          aria-label={social.label}
+          title={social.label}
+        >
+          {social.icon}
+        </a>
+      ))}
+      <button
+        type="button"
+        className="icon-button"
+        onClick={() => void copyLink()}
+        aria-label={copied ? 'Link gekopieerd' : 'Kopieer link'}
+        title={copied ? 'Link gekopieerd' : 'Kopieer link'}
+      >
+        {copied ? <span className="share__check">✓</span> : (
+          <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M10 14a4 4 0 0 0 5.7 0l3.6-3.6a4 4 0 1 0-5.7-5.7L12 6" />
+            <path d="M14 10a4 4 0 0 0-5.7 0L4.7 13.6a4 4 0 1 0 5.7 5.7L12 18" />
+          </svg>
+        )}
+      </button>
+    </div>
+  );
+}
+
+export function PassportView({
+  mode,
+  initialPlate,
+}: {
+  mode: SourceMode;
+  initialPlate?: string;
+}) {
   const [input, setInput] = useState('');
   const [plateQuery, setPlateQuery] = useState('');
+
+  /* A shared link may land here loaded with the plate (`#paspoort/<plaat>`).
+     Only apply it when it is new, so retyping a plate overwrites it. */
+  useEffect(() => {
+    if (!initialPlate) return;
+    const raw = initialPlate.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (raw && raw !== plateQuery) {
+      setPlateQuery(raw);
+      setInput(formatPlate(raw));
+    }
+  }, [initialPlate, plateQuery]);
 
   const samples = useAsync((signal) => samplePlates({ mode, signal }, 5), [mode]);
 
@@ -217,6 +374,10 @@ export function PassportView({ mode }: { mode: SourceMode }) {
                 {titleCase(value(vehicle, 'eerste_kleur') ?? '–')} · eerste toelating{' '}
                 {shortDate(value(vehicle, 'datum_eerste_toelating_dt'))}
               </p>
+              <ShareRow
+                plate={String(vehicle.kenteken)}
+                title={`${titleCase(value(vehicle, 'merk') ?? '')} ${titleCase(value(vehicle, 'handelsbenaming') ?? '')}`.trim()}
+              />
             </div>
             {kooijmans?.PhotoFront ? (
               <figure className="passport__photo">

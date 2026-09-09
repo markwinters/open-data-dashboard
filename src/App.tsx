@@ -59,6 +59,21 @@ export default function App() {
   const [mode, setMode] = useState<SourceMode>('live');
   const [fallbackReason, setFallbackReason] = useState<string | null>(null);
   const [theme, cycleTheme] = useTheme();
+  const [initialPlate, setInitialPlate] = useState<string | null>(null);
+
+  /**
+   * A shared passport link carries the plate in the hash (`#paspoort/<plaat>`),
+   * so opening it elsewhere lands straight on that vehicle's passport instead
+   * of the overview. No router to fight: the tabs are state, and the hash is
+   * only read once on load.
+   */
+  useEffect(() => {
+    const match = window.location.hash.match(/#paspoort\/([A-Z0-9\-.]+)/i);
+    if (match?.[1]) {
+      setInitialPlate(match[1]);
+      setTab('paspoort');
+    }
+  }, []);
 
   /**
    * The dashboard opens against the live API and falls back to demo data if RDW
@@ -160,7 +175,7 @@ export default function App() {
         ) : tab === 'analyse' ? (
           <CohortView mode={mode} />
         ) : (
-          <PassportView mode={mode} />
+          <PassportView mode={mode} initialPlate={initialPlate ?? undefined} />
         )}
       </main>
 

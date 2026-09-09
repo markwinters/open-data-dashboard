@@ -899,6 +899,47 @@ a {
   flex-wrap: wrap;
 }
 
+.passport__share {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.passport__share .icon-button {
+  width: 30px;
+  height: 30px;
+  display: inline-grid;
+}
+
+.share {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.share:hover {
+  background: var(--ghost);
+  color: var(--text-primary);
+}
+
+.share__check {
+  color: var(--good);
+  font-size: 14px;
+  line-height: 1;
+}
+
 .passport__photo {
   margin: 0;
   max-width: 260px;
