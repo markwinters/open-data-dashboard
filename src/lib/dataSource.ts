@@ -129,6 +129,9 @@ function demoData(): Record<DatasetKey, Row[]> {
       defectCodes: generated.defectCodes as unknown as Row[],
       axles: generated.axles as unknown as Row[],
       vehicleClass: generated.vehicleClass as unknown as Row[],
+      recallStatus: generated.recallStatus as unknown as Row[],
+      recallAction: generated.recallAction as unknown as Row[],
+      recallRisk: generated.recallRisk as unknown as Row[],
     };
   }
   return demoTables;

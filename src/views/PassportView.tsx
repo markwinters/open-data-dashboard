@@ -6,6 +6,7 @@ import { ChartCard } from '../charts/ChartCard';
 import { BarChart } from '../charts/BarChart';
 import { Telltale, TelltalePanel } from '../charts/Instruments';
 import { euro, num, num1, plate as formatPlate, shortDate, titleCase, toNumber } from '../lib/format';
+import { readOdometerVerdict } from '../data/odometerVerdict';
 import { powertrainColour } from '../lib/palette';
 import type { Row } from '../mock/soqlEngine';
 
@@ -79,6 +80,17 @@ export function PassportView({ mode }: { mode: SourceMode }) {
     }
     return { lit: false, level: 'good' as const, detail: `Geldig tot ${shortDate(raw)}` };
   }, [vehicle]);
+
+  /* Three register columns read as one verdict on the odometer history. */
+  const odometer = useMemo(
+    () =>
+      readOdometerVerdict(
+        vehicle ? value(vehicle, 'tellerstandoordeel') : null,
+        vehicle ? value(vehicle, 'jaar_laatste_registratie_tellerstand') : null,
+        vehicle ? value(vehicle, 'code_toelichting_tellerstandoordeel') : null,
+      ),
+    [vehicle],
+  );
 
   const co2 = useMemo(() => {
     const values = (data?.fuels ?? [])
@@ -223,9 +235,11 @@ export function PassportView({ mode }: { mode: SourceMode }) {
                 lit={value(vehicle, 'openstaande_terugroepactie_indicator') === 'Ja'}
                 level="serious"
                 detail={
-                  value(vehicle, 'openstaande_terugroepactie_indicator') === 'Ja'
-                    ? 'De fabrikant heeft een actie uitstaan'
-                    : 'Geen actie van de fabrikant open'
+                  data.recalls.length > 0
+                    ? `${data.recalls.length} ${data.recalls.length === 1 ? 'actie' : 'acties'} op dit kenteken`
+                    : value(vehicle, 'openstaande_terugroepactie_indicator') === 'Ja'
+                      ? 'De fabrikant heeft een actie uitstaan'
+                      : 'Geen actie van de fabrikant open'
                 }
               />
               <Telltale
@@ -234,6 +248,13 @@ export function PassportView({ mode }: { mode: SourceMode }) {
                 lit={apk.lit}
                 level={apk.level}
                 detail={apk.detail}
+              />
+              <Telltale
+                kind="odometer"
+                label="Tellerstand"
+                lit={odometer.lit}
+                level={odometer.level}
+                detail={odometer.verdict ? `Oordeel: ${odometer.verdict}` : 'Nog geen oordeel over de reeks'}
               />
               <Telltale
                 kind="export"
@@ -346,6 +367,51 @@ export function PassportView({ mode }: { mode: SourceMode }) {
                 ))}
               </div>
             )}
+          </ChartCard>
+
+          <ChartCard
+            title="Terugroepacties"
+            subtitle="Van kenteken naar referentiecode naar de actie zelf"
+            sources={['recallStatus', 'recallAction', 'recallRisk']}
+            span="half"
+            note="Het register zegt alleen dát er een actie openstaat. Pas de koppeling met het terugroepregister zegt welke, wanneer die is gepubliceerd en wat er mis kan gaan."
+          >
+            {data.recalls.length === 0 ? (
+              <p className="chart-empty">
+                Geen terugroepacties geregistreerd op dit kenteken.
+              </p>
+            ) : (
+              <div className="recall-list">
+                {data.recalls.map((recall) => (
+                  <article className="recall" key={recall.reference}>
+                    <header>
+                      <span className="recall__code">{recall.reference}</span>
+                      <span className="recall__date">{shortDate(recall.published)}</span>
+                    </header>
+                    {recall.status ? <p className="recall__status">{recall.status}</p> : null}
+                    <p className="recall__risk">
+                      {recall.risk ?? 'Geen risico-omschrijving in het register.'}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            )}
+          </ChartCard>
+
+          <ChartCard
+            title="Tellerstand"
+            subtitle="Het oordeel van de RDW over de reeks kilometerstanden"
+            sources={['vehicles']}
+            span="half"
+            note="De RDW publiceert geen kilometerstand, alleen een oordeel over de reeks standen."
+          >
+            <div className="spec-list">
+              <Spec label="Oordeel">{odometer.verdict ?? 'Geen oordeel'}</Spec>
+              <Spec label="Laatste registratie">
+                {odometer.year == null ? '–' : String(odometer.year)}
+              </Spec>
+            </div>
+            {odometer.reason ? <p className="card__note">{odometer.reason}</p> : null}
           </ChartCard>
 
           <ChartCard

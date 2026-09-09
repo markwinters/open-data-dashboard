@@ -180,6 +180,29 @@ export async function typeByPeriod(ctx: Ctx, from: number, to: number): Promise<
     .filter((d) => Number.isFinite(d.year));
 }
 
+/**
+ * How the fleet's odometer histories are judged. One `$group` over the register
+ * - the verdict is a column on the vehicle itself, not a separate dataset.
+ */
+export async function odometerVerdictMix(ctx: Ctx): Promise<LabelCount[]> {
+  const rows = await query(
+    ctx.mode,
+    'vehicles',
+    {
+      select: 'tellerstandoordeel, count(1) AS n',
+      where: notNull('tellerstandoordeel'),
+      group: 'tellerstandoordeel',
+      order: 'n DESC',
+      limit: 20,
+    },
+    { signal: ctx.signal },
+  );
+  return rows.map((row) => ({
+    label: str(row, 'tellerstandoordeel') ?? 'Onbekend',
+    count: Number(row.n),
+  }));
+}
+
 /* ------------------------------------------------------------------ cohorts */
 
 export interface CohortFilters {
@@ -382,6 +405,16 @@ export interface PassportDefect {
   date: string | null;
 }
 
+export interface PassportRecall {
+  /** The manufacturer's reference code, as RDW publishes it. */
+  reference: string;
+  /** This vehicle's status in that action. */
+  status: string | null;
+  published: string | null;
+  /** What can go wrong, when the risk dataset describes it. */
+  risk: string | null;
+}
+
 export interface Passport {
   vehicle: Row;
   fuels: Row[];
@@ -389,8 +422,96 @@ export interface Passport {
   axles: Row[];
   vehicleClass: Row[];
   defects: PassportDefect[];
+  recalls: PassportRecall[];
   powertrain: Powertrain;
   missing: string[];
+}
+
+/**
+ * Picks the prose column out of a recall-risk row.
+ *
+ * The risk dataset's own column name could not be confirmed without a live
+ * call, so rather than guess one and break the panel, the longest text-bearing
+ * column that is not the join key is used. That is stable under a rename.
+ */
+export function describeRisk(row: Row): string | null {
+  let best: string | null = null;
+  for (const [field, value] of Object.entries(row)) {
+    if (field === 'referentiecode_rdw' || value == null) continue;
+    const text = String(value).trim();
+    // A description is prose; a code or a date is not.
+    if (text.length < 12 || !/\s/.test(text)) continue;
+    if (best === null || text.length > best.length) best = text;
+  }
+  return best;
+}
+
+/**
+ * Resolves a plate's open recalls across the three recall datasets.
+ *
+ * The register only says *that* something is open. The status table turns the
+ * plate into reference codes, and those codes reach the action and the risk -
+ * which is what turns a warning lamp into a sentence a driver can act on.
+ */
+async function loadRecalls(ctx: Ctx, kenteken: string, missing: string[]): Promise<PassportRecall[]> {
+  let statusRows: Row[];
+  try {
+    statusRows = await query(
+      ctx.mode,
+      'recallStatus',
+      { where: eq('kenteken', kenteken), limit: 50 },
+      { signal: ctx.signal },
+    );
+  } catch {
+    missing.push('terugroepstatus');
+    return [];
+  }
+
+  const references = [...new Set(statusRows.map((row) => str(row, 'referentiecode_rdw')).filter((r): r is string => !!r))];
+  if (references.length === 0) return [];
+
+  const sideList = async (name: string, dataset: 'recallAction' | 'recallRisk'): Promise<Row[]> => {
+    try {
+      return await query(
+        ctx.mode,
+        dataset,
+        { where: inList('referentiecode_rdw', references), limit: 200 },
+        { signal: ctx.signal },
+      );
+    } catch {
+      missing.push(name);
+      return [];
+    }
+  };
+
+  const [actionRows, riskRows] = await Promise.all([
+    sideList('terugroepacties', 'recallAction'),
+    sideList('terugroeprisico', 'recallRisk'),
+  ]);
+
+  const publishedBy = new Map(
+    actionRows.map((row) => [str(row, 'referentiecode_rdw') ?? '', str(row, 'publicatiedatum_rdw')]),
+  );
+  const riskBy = new Map<string, string>();
+  for (const row of riskRows) {
+    const reference = str(row, 'referentiecode_rdw');
+    const text = describeRisk(row);
+    if (reference && text && !riskBy.has(reference)) riskBy.set(reference, text);
+  }
+
+  return statusRows
+    .map((row) => {
+      const reference = str(row, 'referentiecode_rdw') ?? '';
+      return {
+        reference,
+        status: str(row, 'status'),
+        published: publishedBy.get(reference) ?? null,
+        risk: riskBy.get(reference) ?? null,
+      };
+    })
+    .filter((recall) => recall.reference)
+    // Newest first; a recall without a date sorts last.
+    .sort((a, b) => (b.published ?? '').localeCompare(a.published ?? ''));
 }
 
 /**
@@ -425,7 +546,7 @@ export async function loadPassport(ctx: Ctx, rawPlate: string): Promise<Passport
   };
 
   const plateFilter = { where: eq('kenteken', kenteken), limit: 60 };
-  const [fuels, body, axles, vehicleClass, defectRows, lexicon] = await Promise.all([
+  const [fuels, body, axles, vehicleClass, defectRows, lexicon, recalls] = await Promise.all([
     side('brandstof', query(ctx.mode, 'fuel', plateFilter, { signal: ctx.signal })),
     side('carrosserie', query(ctx.mode, 'body', plateFilter, { signal: ctx.signal })),
     side('assen', query(ctx.mode, 'axles', plateFilter, { signal: ctx.signal })),
@@ -435,6 +556,7 @@ export async function loadPassport(ctx: Ctx, rawPlate: string): Promise<Passport
       query(ctx.mode, 'defectsFound', { where: eq('kenteken', kenteken), limit: 300 }, { signal: ctx.signal }),
     ),
     defectLexicon(ctx).catch(() => new Map<string, string>()),
+    loadRecalls(ctx, kenteken, missing),
   ]);
 
   const defects: PassportDefect[] = defectRows
@@ -456,6 +578,7 @@ export async function loadPassport(ctx: Ctx, rawPlate: string): Promise<Passport
     axles,
     vehicleClass,
     defects,
+    recalls,
     powertrain: classifyPowertrain(
       fuels.map((f) => str(f, 'brandstof_omschrijving') ?? '').filter(Boolean),
     ),

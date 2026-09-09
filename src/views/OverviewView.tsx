@@ -6,6 +6,7 @@ import {
   overviewKpis,
   registrationsByYear,
   topBrands,
+  odometerVerdictMix,
   typeByPeriod,
   vehicleTypeMix,
 } from '../data/queries';
@@ -39,6 +40,7 @@ export function OverviewView({ mode }: { mode: SourceMode }) {
   const types = useAsync((signal) => vehicleTypeMix({ mode, signal }), [mode]);
   const fuels = useAsync((signal) => fuelMix({ mode, signal }), [mode]);
   const grid = useAsync((signal) => typeByPeriod({ mode, signal }, from, CURRENT_YEAR), [mode, from]);
+  const odometer = useAsync((signal) => odometerVerdictMix({ mode, signal }), [mode]);
 
   const total = kpis.data?.total ?? null;
   const series = registrations.data ?? [];
@@ -87,6 +89,20 @@ export function OverviewView({ mode }: { mode: SourceMode }) {
     kpis.data?.electricRows != null && total ? kpis.data.electricRows / total : null;
   const recallShare = kpis.data?.openRecalls != null && total ? kpis.data.openRecalls / total : null;
   const uninsuredShare = kpis.data?.uninsured != null && total ? kpis.data.uninsured / total : null;
+
+  /* Share of *judged* vehicles whose odometer series does not add up. The
+     denominator is deliberately the judged set, not the whole fleet: a vehicle
+     with too few readings has no verdict, and counting it as "fine" would
+     flatter the number. */
+  const illogicalOdometer = useMemo(() => {
+    const rows = odometer.data ?? [];
+    if (rows.length === 0) return null;
+    const judged = rows.reduce((sum, row) => sum + row.count, 0);
+    const bad = rows
+      .filter((row) => row.label.toLowerCase().includes('onlogisch'))
+      .reduce((sum, row) => sum + row.count, 0);
+    return judged > 0 ? bad / judged : null;
+  }, [odometer.data]);
 
   return (
     <>
@@ -138,6 +154,15 @@ export function OverviewView({ mode }: { mode: SourceMode }) {
             format={(v) => percent(v)}
             tone="serious"
             caption="Openstaand bij de fabrikant"
+          />
+          <Gauge
+            label="Tellerstand onlogisch"
+            value={illogicalOdometer}
+            max={0.1}
+            redlineFrom={0.05}
+            format={(v) => percent(v)}
+            tone="critical"
+            caption="Van de voertuigen waarover de RDW een oordeel geeft"
           />
           <Gauge
             label="Onverzekerd"
